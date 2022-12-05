@@ -5,7 +5,11 @@ from torchlibrosa.stft import Spectrogram, LogmelFilterBank
 from torchlibrosa.augmentation import SpecAugmentation
 import os
 
-from audiogen_eval.feature_extractors.panns.pytorch_utils import do_mixup, interpolate, pad_framewise_output
+from audiogen_eval.feature_extractors.panns.pytorch_utils import (
+    do_mixup,
+    interpolate,
+    pad_framewise_output,
+)
 
 
 def init_layer(layer):
@@ -234,15 +238,11 @@ class Cnn14(nn.Module):
             os.makedirs("ckpt", exist_ok=True)
             os.system(
                 "wget -P ckpt/ %s"
-                % (
-                    "https://zenodo.org/record/3576403/files/Cnn14_mAP%3D0.431.pth"
-                )
+                % ("https://zenodo.org/record/3576403/files/Cnn14_mAP%3D0.431.pth")
             )
             os.system(
                 "wget -P ckpt/ %s"
-                % (
-                    "https://zenodo.org/record/3987831/files/Cnn14_16k_mAP%3D0.438.pth"
-                )
+                % ("https://zenodo.org/record/3987831/files/Cnn14_16k_mAP%3D0.438.pth")
             )
 
         # self.init_weight()

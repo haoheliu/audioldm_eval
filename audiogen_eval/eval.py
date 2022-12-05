@@ -18,9 +18,7 @@ import audiogen_eval.audio as Audio
 
 
 class EvaluationHelper:
-    def __init__(
-        self, sampling_rate, device, backbone="cnn14"
-    ) -> None:
+    def __init__(self, sampling_rate, device, backbone="cnn14") -> None:
 
         self.device = device
         self.backbone = backbone
@@ -278,12 +276,20 @@ class EvaluationHelper:
             f'({out.get("kernel_inception_distance_std", float("nan")):.5f})',
         )
         result = {
-            'kullback_leibler_divergence': out.get("kullback_leibler_divergence", float("nan")),
-            'inception_score_mean': out.get("inception_score_mean", float("nan")),
-            'inception_score_std': out.get("inception_score_std", float("nan")),
-            'frechet_inception_distance': out.get("frechet_inception_distance", float("nan")),
-            'kernel_inception_distance_mean': out.get("kernel_inception_distance_mean", float("nan")),
-            'kernel_inception_distance_std': out.get("kernel_inception_distance_std", float("nan")),
+            "kullback_leibler_divergence": out.get(
+                "kullback_leibler_divergence", float("nan")
+            ),
+            "inception_score_mean": out.get("inception_score_mean", float("nan")),
+            "inception_score_std": out.get("inception_score_std", float("nan")),
+            "frechet_inception_distance": out.get(
+                "frechet_inception_distance", float("nan")
+            ),
+            "kernel_inception_distance_mean": out.get(
+                "kernel_inception_distance_mean", float("nan")
+            ),
+            "kernel_inception_distance_std": out.get(
+                "kernel_inception_distance_std", float("nan")
+            ),
         }
         return result
 

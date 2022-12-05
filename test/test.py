@@ -36,15 +36,18 @@ parser.add_argument(
     help="Audio clip numbers limit for evaluation",
     default=500,
 )
-parser.add_argument(
-    "--same_name",
-    action='store_true'
-)
+parser.add_argument("--same_name", action="store_true")
 args = parser.parse_args()
 
 device = torch.device(f"cuda:{0}")
 
 evaluator = EvaluationHelper(args.sampling_rate, device)
 
-metrics = evaluator.main(args.generation_result_path, args.target_audio_path, limit_num=args.limit_num, same_name=args.same_name)
+metrics = evaluator.main(
+    args.generation_result_path,
+    args.target_audio_path,
+    limit_num=args.limit_num,
+    same_name=args.same_name,
+)
+
 print(metrics)
