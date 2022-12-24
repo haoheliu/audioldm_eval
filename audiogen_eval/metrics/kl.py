@@ -34,7 +34,9 @@ def path_to_sharedkey(path, dataset_name, classes=None):
 
 def calculate_kl(featuresdict_1, featuresdict_2, feat_layer_name, same_name=True):
     # test_input(featuresdict_1, featuresdict_2, feat_layer_name, dataset_name, classes)
-
+    if(not same_name):
+        return {"kullback_leibler_divergence": float(-1)}
+    
     print(
         'KL: Assuming that `input2` is "pseudo" target and `input1` is prediction. KL(input2_i||input1_i)'
     )
@@ -59,25 +61,21 @@ def calculate_kl(featuresdict_1, featuresdict_2, feat_layer_name, same_name=True
 
     features_1 = []
     features_2 = []
-    if same_name:
-        for sharedkey, feat_2 in sharedkey_to_feats_2.items():
-            # print("feat_2",feat_2)
-            if(sharedkey not in sharedkey_to_feats_1.keys()):
-                print("%s is not in the generation result" % sharedkey)
-                continue
-            features_1.extend(
-                [sharedkey_to_feats_1[sharedkey]]
-            )  # 在将生成的特征，直接放features_1
-            # print("feature_step",len(features_1))
-            # print("share",sharedkey_to_feats_1[sharedkey])
-            # just replicating the ground truth logits to compare with multiple samples in prediction
-            # samples_num = len(sharedkey_to_feats_1[sharedkey])
-            features_2.extend([feat_2])
-    else:
-        for sharedkey, feat_1 in sharedkey_to_feats_1.items():
-            features_1.extend([feat_1])
-        for sharedkey, feat_2 in sharedkey_to_feats_2.items():
-            features_2.extend([feat_2])
+
+    for sharedkey, feat_2 in sharedkey_to_feats_2.items():
+        # print("feat_2",feat_2)
+        if(sharedkey not in sharedkey_to_feats_1.keys()):
+            print("%s is not in the generation result" % sharedkey)
+            continue
+        features_1.extend(
+            [sharedkey_to_feats_1[sharedkey]]
+        )  # 在将生成的特征，直接放features_1
+        # print("feature_step",len(features_1))
+        # print("share",sharedkey_to_feats_1[sharedkey])
+        # just replicating the ground truth logits to compare with multiple samples in prediction
+        # samples_num = len(sharedkey_to_feats_1[sharedkey])
+        features_2.extend([feat_2])
+
 
     features_1 = torch.stack(features_1, dim=0)
     features_2 = torch.stack(features_2, dim=0)

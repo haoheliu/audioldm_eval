@@ -217,7 +217,11 @@ class EvaluationHelper:
         for mel_gen, mel_target, filename in tqdm(pairedloader):
             mel_gen = mel_gen.cpu().numpy()[0]
             mel_target = mel_target.cpu().numpy()[0]
-            psnr_avg.append(psnr(mel_gen, mel_target))
+            psnrval = psnr(mel_gen, mel_target)
+            if(np.isinf(psnrval)):
+                print("Infinite value encountered in psnr %s " % filename)
+                continue
+            psnr_avg.append(psnrval)
             ssim_avg.append(ssim(mel_gen, mel_target))
         return {
             "psnr": np.mean(psnr_avg),
@@ -290,7 +294,7 @@ class EvaluationHelper:
         metric_isc = calculate_isc(
             featuresdict_1,
             feat_layer_name="logits",
-            splits=4,
+            splits=10,
             samples_shuffle=True,
             rng_seed=2020,
         )
@@ -304,20 +308,19 @@ class EvaluationHelper:
         # Gen, target
         fad_score = self.frechet.score(output, result, limit_num=limit_num)
         out.update(fad_score)
-        
-        # if cfg.have_kid:
-        # metric_kid = calculate_kid(
-        #     featuresdict_1,
-        #     featuresdict_2,
-        #     feat_layer_name="2048",
-        #     subsets=100,
-        #     subset_size=1000,
-        #     degree=3,
-        #     gamma=None,
-        #     coef0=1,
-        #     rng_seed=2020,
-        # )
-        # out.update(metric_kid)
+
+        metric_kid = calculate_kid(
+            featuresdict_1,
+            featuresdict_2,
+            feat_layer_name="2048",
+            subsets=100,
+            subset_size=1000,
+            degree=3,
+            gamma=None,
+            coef0=1,
+            rng_seed=2020,
+        )
+        out.update(metric_kid)
 
         print("\n".join((f"{k}: {v:.7f}" for k, v in out.items())))
         print("\n")
@@ -326,7 +329,7 @@ class EvaluationHelper:
             f'KL: {out.get("kullback_leibler_divergence", float("nan")):8.5f};',
             f'ISc: {out.get("inception_score_mean", float("nan")):8.5f} ({out.get("inception_score_std", float("nan")):5f});',
             f'FID: {out.get("frechet_inception_distance", float("nan")):8.5f};',
-            # f'KID: {out.get("kernel_inception_distance_mean", float("nan")):.5f}',
+            f'KID: {out.get("kernel_inception_distance_mean", float("nan")):.5f}',
             f'({out.get("kernel_inception_distance_std", float("nan")):.5f})',
             f'FAD: {out.get("frechet_audio_distance", float("nan")):.5f}',
             f'PSNR: {out.get("psnr", float("nan")):.5f}',
@@ -344,18 +347,18 @@ class EvaluationHelper:
             "frechet_audio_distance": out.get(
                 "frechet_audio_distance", float("nan")
             ),
+            "kernel_inception_distance_mean": out.get(
+                "kernel_inception_distance_mean", float("nan")
+            ),
+            "kernel_inception_distance_std": out.get(
+                "kernel_inception_distance_std", float("nan")
+            ),
             "PSNR": out.get(
                 "psnr", float("nan")
             ),
             "SSIM": out.get(
                 "ssim", float("nan")
-            )
-            # "kernel_inception_distance_mean": out.get(
-            #     "kernel_inception_distance_mean", float("nan")
-            # ),
-            # "kernel_inception_distance_std": out.get(
-            #     "kernel_inception_distance_std", float("nan")
-            # ),
+            ),
         }
         return result
 
