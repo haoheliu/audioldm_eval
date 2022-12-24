@@ -1,6 +1,6 @@
 import sys
 
-from audiogen_eval.datasets.load_mel import MelDataset, load_npy_data
+from audiogen_eval.datasets.load_mel import MelDataset, load_npy_data, MelPairedDataset
 from audiogen_eval.metrics.ndb import *
 import numpy as np
 import argparse
@@ -9,9 +9,10 @@ from torch.utils.data import DataLoader
 from audiogen_eval.feature_extractors.melception import Melception
 from tqdm import tqdm
 from audiogen_eval.metrics import gs
-
+from audiogen_eval.metrics.fad import FrechetAudioDistance
 from audiogen_eval import calculate_fid, calculate_isc, calculate_kid, calculate_kl
-
+from skimage.metrics import peak_signal_noise_ratio as psnr
+from skimage.metrics import structural_similarity as ssim
 from audiogen_eval.feature_extractors.panns import Cnn14, Cnn14_16k
 
 import audiogen_eval.audio as Audio
@@ -23,6 +24,14 @@ class EvaluationHelper:
         self.device = device
         self.backbone = backbone
         self.sampling_rate = sampling_rate
+        self.frechet = FrechetAudioDistance(
+            use_pca=False, 
+            use_activation=False,
+            verbose=True,
+            audio_load_worker=1
+        )
+
+        self.frechet.model = self.frechet.model.to(device)
 
         features_list = ["2048", "logits"]
         if self.sampling_rate == 16000:
@@ -51,7 +60,14 @@ class EvaluationHelper:
             raise ValueError(
                 "We only support the evaluation on 16kHz and 32kHz sampling rate."
             )
-        self._stft = None
+            
+        if self.sampling_rate == 16000:
+            self._stft = Audio.TacotronSTFT(512,512,512,64,16000,50,8000)
+        else:
+            raise ValueError(
+                "We only support the evaluation on 16kHz sampling rate."
+            )
+        
 
         self.mel_model.eval()
         self.mel_model.to(self.device)
@@ -69,9 +85,6 @@ class EvaluationHelper:
         iter_num=40,
     ):
 
-        # Use the ground truth audio file to calculate mean and std
-        # self.calculate_stats_for_normalization(resultpath)
-
         # gsm = self.getgsmscore(o_filepath, resultpath, iter_num)
 
         # ndb = self.getndbscore(
@@ -79,124 +92,142 @@ class EvaluationHelper:
         # )
 
         metrics = self.calculate_metrics(o_filepath, resultpath, same_name, limit_num)
-
-        # return gsm, ndb, metrics
+        
         return metrics
 
-    def getndbscore(
-        self,
-        output,
-        result,
-        number_of_bins=30,
-        evaluation_num=50,
-        cache_folder="./results/mnist_toy_example_ndb_cache",
-    ):
-        print("calculating the ndb score:")
-        num_workers = 0
+    # def getndbscore(
+    #     self,
+    #     output,
+    #     result,
+    #     number_of_bins=30,
+    #     evaluation_num=50,
+    #     cache_folder="./results/mnist_toy_example_ndb_cache",
+    # ):
+    #     print("calculating the ndb score:")
+    #     num_workers = 0
 
-        outputloader = DataLoader(
-            MelDataset(
-                output,
-                self._stft,
-                self.sampling_rate,
-                self.fbin_mean,
-                self.fbin_std,
-                augment=True,
-            ),
-            batch_size=1,
-            sampler=None,
-            num_workers=num_workers,
-        )
-        resultloader = DataLoader(
-            MelDataset(
-                result,
-                self._stft,
-                self.sampling_rate,
-                self.fbin_mean,
-                self.fbin_std,
-            ),
-            batch_size=1,
-            sampler=None,
-            num_workers=num_workers,
-        )
+    #     outputloader = DataLoader(
+    #         MelDataset(
+    #             output,
+    #             self._stft,
+    #             self.sampling_rate,
+    #             self.fbin_mean,
+    #             self.fbin_std,
+    #             augment=True,
+    #         ),
+    #         batch_size=1,
+    #         sampler=None,
+    #         num_workers=num_workers,
+    #     )
+    #     resultloader = DataLoader(
+    #         MelDataset(
+    #             result,
+    #             self._stft,
+    #             self.sampling_rate,
+    #             self.fbin_mean,
+    #             self.fbin_std,
+    #         ),
+    #         batch_size=1,
+    #         sampler=None,
+    #         num_workers=num_workers,
+    #     )
 
-        n_query = evaluation_num
-        train_samples = load_npy_data(outputloader)
+    #     n_query = evaluation_num
+    #     train_samples = load_npy_data(outputloader)
 
-        # print('Initialize NDB bins with training samples')
-        mnist_ndb = NDB(
-            training_data=train_samples,
-            number_of_bins=number_of_bins,
-            z_threshold=None,
-            whitening=False,
-            cache_folder=cache_folder,
-        )
+    #     mnist_ndb = NDB(
+    #         training_data=train_samples,
+    #         number_of_bins=number_of_bins,
+    #         z_threshold=None,
+    #         whitening=False,
+    #         cache_folder=cache_folder,
+    #     )
 
-        result_samples = load_npy_data(resultloader)
-        results = mnist_ndb.evaluate(
-            self.sample_from(result_samples, n_query), "generated result"
-        )
-        plt.figure()
-        mnist_ndb.plot_results()
+    #     result_samples = load_npy_data(resultloader)
+    #     results = mnist_ndb.evaluate(
+    #         self.sample_from(result_samples, n_query), "generated result"
+    #     )
+    #     plt.figure()
+    #     mnist_ndb.plot_results()
 
-    def getgsmscore(self, output, result, iter_num=40):
-        num_workers = 0
+    # def getgsmscore(self, output, result, iter_num=40):
+    #     num_workers = 0
 
-        print("calculating the gsm score:")
+    #     print("calculating the gsm score:")
 
-        outputloader = DataLoader(
-            MelDataset(
-                output,
-                self._stft,
-                self.sampling_rate,
-                self.fbin_mean,
-                self.fbin_std,
-                augment=True,
-            ),
-            batch_size=1,
-            sampler=None,
-            num_workers=num_workers,
-        )
-        resultloader = DataLoader(
-            MelDataset(
-                result,
-                self._stft,
-                self.sampling_rate,
-                self.fbin_mean,
-                self.fbin_std,
-            ),
-            batch_size=1,
-            sampler=None,
-            num_workers=num_workers,
-        )
+    #     outputloader = DataLoader(
+    #         MelDataset(
+    #             output,
+    #             self._stft,
+    #             self.sampling_rate,
+    #             self.fbin_mean,
+    #             self.fbin_std,
+    #             augment=True,
+    #         ),
+    #         batch_size=1,
+    #         sampler=None,
+    #         num_workers=num_workers,
+    #     )
+    #     resultloader = DataLoader(
+    #         MelDataset(
+    #             result,
+    #             self._stft,
+    #             self.sampling_rate,
+    #             self.fbin_mean,
+    #             self.fbin_std,
+    #         ),
+    #         batch_size=1,
+    #         sampler=None,
+    #         num_workers=num_workers,
+    #     )
 
-        x_train = load_npy_data(outputloader)
+    #     x_train = load_npy_data(outputloader)
 
-        x_1 = x_train
-        newshape = int(x_1.shape[1] / 8)
-        x_1 = np.reshape(x_1, (-1, newshape))
-        rlts = gs.rlts(x_1, gamma=1.0 / 128, n=iter_num)
-        mrlt = np.mean(rlts, axis=0)
+    #     x_1 = x_train
+    #     newshape = int(x_1.shape[1] / 8)
+    #     x_1 = np.reshape(x_1, (-1, newshape))
+    #     rlts = gs.rlts(x_1, gamma=1.0 / 128, n=iter_num)
+    #     mrlt = np.mean(rlts, axis=0)
 
-        gs.fancy_plot(mrlt, label="MRLT of data_1", color="C0")
-        plt.xlim([0, 30])
-        plt.legend()
+    #     gs.fancy_plot(mrlt, label="MRLT of data_1", color="C0")
+    #     plt.xlim([0, 30])
+    #     plt.legend()
 
-        x_train = load_npy_data(resultloader)
+    #     x_train = load_npy_data(resultloader)
 
-        x_1 = x_train
-        x_1 = np.reshape(x_1, (-1, newshape))
-        rlts = gs.rlts(x_1, gamma=1.0 / 128, n=iter_num)
+    #     x_1 = x_train
+    #     x_1 = np.reshape(x_1, (-1, newshape))
+    #     rlts = gs.rlts(x_1, gamma=1.0 / 128, n=iter_num)
 
-        mrlt = np.mean(rlts, axis=0)
+    #     mrlt = np.mean(rlts, axis=0)
 
-        gs.fancy_plot(mrlt, label="MRLT of data_2", color="orange")
-        plt.xlim([0, 30])
-        plt.legend()
-        plt.show()
+    #     gs.fancy_plot(mrlt, label="MRLT of data_2", color="orange")
+    #     plt.xlim([0, 30])
+    #     plt.legend()
+    #     plt.show()
+
+    def calculate_psnr_ssim(self, pairedloader, same_name=True):
+        if(same_name == False):
+            return {
+                "psnr": -1,
+                "ssim": -1
+            }
+        psnr_avg = []
+        ssim_avg = []
+        for mel_gen, mel_target, filename in tqdm(pairedloader):
+            mel_gen = mel_gen.cpu().numpy()[0]
+            mel_target = mel_target.cpu().numpy()[0]
+            psnr_avg.append(psnr(mel_gen, mel_target))
+            ssim_avg.append(ssim(mel_gen, mel_target))
+        return {
+            "psnr": np.mean(psnr_avg),
+            "ssim": np.mean(ssim_avg)
+        }
 
     def calculate_metrics(self, output, result, same_name, limit_num=None):
+        # Generation, target
         torch.manual_seed(0)
+        
         num_workers = 0
 
         outputloader = DataLoader(
@@ -213,6 +244,7 @@ class EvaluationHelper:
             sampler=None,
             num_workers=num_workers,
         )
+        
         resultloader = DataLoader(
             MelDataset(
                 result,
@@ -225,16 +257,33 @@ class EvaluationHelper:
             batch_size=1,
             sampler=None,
             num_workers=num_workers,
+        )
+        
+        pairedloader = DataLoader(
+            MelPairedDataset(
+                output,
+                result,
+                self._stft,
+                self.sampling_rate,
+                self.fbin_mean,
+                self.fbin_std,
+                limit_num=limit_num,
+            ),
+            batch_size=1,
+            sampler=None,
+            num_workers=8,
         )
 
         out = {}
-
-        print("Extracting features from input_1")
-        featuresdict_1 = self.get_featuresdict(outputloader)
-        print("Extracting features from input_2")
+        print("Extracting features from %s." % result)
         featuresdict_2 = self.get_featuresdict(resultloader)
+        print("Extracting features from %s." % output)
+        featuresdict_1 = self.get_featuresdict(outputloader)
 
         # if cfg.have_kl:
+        metric_psnr_ssim = self.calculate_psnr_ssim(pairedloader, same_name=same_name)
+        out.update(metric_psnr_ssim)
+        
         metric_kl = calculate_kl(featuresdict_1, featuresdict_2, "logits", same_name)
         out.update(metric_kl)
         # if cfg.have_isc:
@@ -251,19 +300,24 @@ class EvaluationHelper:
             featuresdict_1, featuresdict_2, feat_layer_name="2048"
         )
         out.update(metric_fid)
+        
+        # Gen, target
+        fad_score = self.frechet.score(output, result, limit_num=limit_num)
+        out.update(fad_score)
+        
         # if cfg.have_kid:
-        metric_kid = calculate_kid(
-            featuresdict_1,
-            featuresdict_2,
-            feat_layer_name="2048",
-            subsets=100,
-            subset_size=1000,
-            degree=3,
-            gamma=None,
-            coef0=1,
-            rng_seed=2020,
-        )
-        out.update(metric_kid)
+        # metric_kid = calculate_kid(
+        #     featuresdict_1,
+        #     featuresdict_2,
+        #     feat_layer_name="2048",
+        #     subsets=100,
+        #     subset_size=1000,
+        #     degree=3,
+        #     gamma=None,
+        #     coef0=1,
+        #     rng_seed=2020,
+        # )
+        # out.update(metric_kid)
 
         print("\n".join((f"{k}: {v:.7f}" for k, v in out.items())))
         print("\n")
@@ -272,8 +326,11 @@ class EvaluationHelper:
             f'KL: {out.get("kullback_leibler_divergence", float("nan")):8.5f};',
             f'ISc: {out.get("inception_score_mean", float("nan")):8.5f} ({out.get("inception_score_std", float("nan")):5f});',
             f'FID: {out.get("frechet_inception_distance", float("nan")):8.5f};',
-            f'KID: {out.get("kernel_inception_distance_mean", float("nan")):.5f}',
+            # f'KID: {out.get("kernel_inception_distance_mean", float("nan")):.5f}',
             f'({out.get("kernel_inception_distance_std", float("nan")):.5f})',
+            f'FAD: {out.get("frechet_audio_distance", float("nan")):.5f}',
+            f'PSNR: {out.get("psnr", float("nan")):.5f}',
+            f'SSIM: {out.get("ssim", float("nan")):.5f}',
         )
         result = {
             "kullback_leibler_divergence": out.get(
@@ -284,12 +341,21 @@ class EvaluationHelper:
             "frechet_inception_distance": out.get(
                 "frechet_inception_distance", float("nan")
             ),
-            "kernel_inception_distance_mean": out.get(
-                "kernel_inception_distance_mean", float("nan")
+            "frechet_audio_distance": out.get(
+                "frechet_audio_distance", float("nan")
             ),
-            "kernel_inception_distance_std": out.get(
-                "kernel_inception_distance_std", float("nan")
+            "PSNR": out.get(
+                "psnr", float("nan")
             ),
+            "SSIM": out.get(
+                "ssim", float("nan")
+            )
+            # "kernel_inception_distance_mean": out.get(
+            #     "kernel_inception_distance_mean", float("nan")
+            # ),
+            # "kernel_inception_distance_std": out.get(
+            #     "kernel_inception_distance_std", float("nan")
+            # ),
         }
         return result
 
@@ -300,7 +366,7 @@ class EvaluationHelper:
 
         # transforms=StandardNormalizeAudio()
 
-        for waveform, filename in tqdm(dataloader):
+        for mel, waveform, filename in tqdm(dataloader):
             metadict = {
                 "file_path_": filename,
             }

@@ -38,9 +38,7 @@ def calculate_kl(featuresdict_1, featuresdict_2, feat_layer_name, same_name=True
     print(
         'KL: Assuming that `input2` is "pseudo" target and `input1` is prediction. KL(input2_i||input1_i)'
     )
-
     EPS = 1e-6
-
     features_1 = featuresdict_1[feat_layer_name]
     features_2 = featuresdict_2[feat_layer_name]
     # # print('features_1 ',features_1.shape) # the predicted (num*10, class_num)
@@ -64,6 +62,9 @@ def calculate_kl(featuresdict_1, featuresdict_2, feat_layer_name, same_name=True
     if same_name:
         for sharedkey, feat_2 in sharedkey_to_feats_2.items():
             # print("feat_2",feat_2)
+            if(sharedkey not in sharedkey_to_feats_1.keys()):
+                print("%s is not in the generation result" % sharedkey)
+                continue
             features_1.extend(
                 [sharedkey_to_feats_1[sharedkey]]
             )  # 在将生成的特征，直接放features_1
@@ -75,15 +76,18 @@ def calculate_kl(featuresdict_1, featuresdict_2, feat_layer_name, same_name=True
     else:
         for sharedkey, feat_1 in sharedkey_to_feats_1.items():
             features_1.extend([feat_1])
-        for sharedkey, feat_2 in sharedkey_to_feats_1.items():
+        for sharedkey, feat_2 in sharedkey_to_feats_2.items():
             features_2.extend([feat_2])
 
     features_1 = torch.stack(features_1, dim=0)
     features_2 = torch.stack(features_2, dim=0)
 
-    features_1 = features_1.softmax(dim=1)  # TODO
-    features_2 = features_2.softmax(dim=1)
+    # features_1 = features_1.softmax(dim=1)  # TODO
+    # features_2 = features_2.softmax(dim=1)
 
+    features_1 = features_1.sigmoid()  
+    features_2 = features_2.sigmoid()
+    
     kl = torch.nn.functional.kl_div(
         (features_1 + EPS).log(), features_2, reduction="sum"
     ) / len(features_1)

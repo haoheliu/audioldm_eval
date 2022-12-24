@@ -311,10 +311,11 @@ class Cnn14(nn.Module):
         x = x1 + x2
         x = F.dropout(x, p=0.5, training=self.training)
         x = self.fc1(x)
-        embedding = F.dropout(x, p=0.5, training=self.training)  # .clone()
-
-        clipwise_output = torch.sigmoid(self.fc_audioset(F.relu_(x)))
-        output_dict = {"logits": clipwise_output, "2048": embedding}
+        x = F.dropout(x, p=0.5, training=self.training)  # .clone()
+        embedding = F.relu_(x).clone()
+        logits = self.fc_audioset(F.relu_(x)).clone()
+        clipwise_output = torch.sigmoid(logits)
+        output_dict = {"logits": logits, "2048": embedding, "clipwise_output": clipwise_output}
 
         return output_dict
 

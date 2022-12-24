@@ -3,7 +3,7 @@ import numpy as np
 from scipy.io.wavfile import write
 import torchaudio
 
-from audio.audio_processing import griffin_lim
+from audiogen_eval.audio.audio_processing import griffin_lim
 
 
 def get_mel_from_wav(audio, _stft):

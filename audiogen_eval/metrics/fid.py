@@ -9,9 +9,7 @@ def calculate_fid(
     eps = 1e-6
     features_1 = featuresdict_1[feat_layer_name]
     features_2 = featuresdict_2[feat_layer_name]
-    # print('features_1 ', features_1.shape) # (num, 2048)
-    # print('features_2 ', features_2.shape) # (num*10, 2048)
-    # assert 1==2
+
     assert torch.is_tensor(features_1) and features_1.dim() == 2
     assert torch.is_tensor(features_2) and features_2.dim() == 2
 

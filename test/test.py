@@ -4,6 +4,7 @@ from audiogen_eval import EvaluationHelper
 import torch
 
 parser = argparse.ArgumentParser()
+
 parser.add_argument(
     "-g",
     "--generation_result_path",
@@ -12,6 +13,7 @@ parser.add_argument(
     help="Audio sampling rate during evaluation",
     default="/mnt/fast/datasets/audio/audioset/2million_audioset_wav/balanced_train_segments",
 )
+
 parser.add_argument(
     "-t",
     "--target_audio_path",
@@ -20,6 +22,7 @@ parser.add_argument(
     help="Audio sampling rate during evaluation",
     default="/mnt/fast/datasets/audio/audioset/2million_audioset_wav/eval_segments",
 )
+
 parser.add_argument(
     "-sr",
     "--sampling_rate",
@@ -28,14 +31,16 @@ parser.add_argument(
     help="Audio sampling rate during evaluation",
     default=16000,
 )
+
 parser.add_argument(
     "-l",
     "--limit_num",
     type=int,
     required=False,
     help="Audio clip numbers limit for evaluation",
-    default=500,
+    default=5000,
 )
+
 parser.add_argument("--same_name", action="store_true")
 args = parser.parse_args()
 

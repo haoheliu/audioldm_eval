@@ -1,3 +1,6 @@
 ckpt/
+*.pth
+*.wav
+*.npy
 *.egg-info
 __pycache__

@@ -2,7 +2,11 @@ import torch
 import numpy as np
 
 
-def calculate_isc(featuresdict, feat_layer_name, rng_seed, samples_shuffle, splits):
+def calculate_isc(featuresdict, 
+                  feat_layer_name, 
+                  rng_seed, 
+                  samples_shuffle, 
+                  splits):
     print("Computing Inception Score")
 
     features = featuresdict[feat_layer_name]

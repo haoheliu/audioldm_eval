@@ -5,7 +5,7 @@ from scipy.signal import get_window
 from librosa.util import pad_center, tiny
 from librosa.filters import mel as librosa_mel_fn
 
-from audio.audio_processing import (
+from audiogen_eval.audio.audio_processing import (
     dynamic_range_compression,
     dynamic_range_decompression,
     window_sumsquare,
