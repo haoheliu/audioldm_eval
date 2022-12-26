@@ -4,6 +4,8 @@ from audiogen_eval.datasets.load_mel import MelDataset, load_npy_data, MelPaired
 from audiogen_eval.metrics.ndb import *
 import numpy as np
 import argparse
+import json
+
 import torch
 from torch.utils.data import DataLoader
 from audiogen_eval.feature_extractors.melception import Melception
@@ -17,7 +19,17 @@ from audiogen_eval.feature_extractors.panns import Cnn14, Cnn14_16k
 
 import audiogen_eval.audio as Audio
 
+def write_json(my_dict, fname):
+    print("Save json file at "+fname)
+    json_str = json.dumps(my_dict)
+    with open(fname, 'w') as json_file:
+        json_file.write(json_str)
 
+def load_json(fname):
+    with open(fname,'r') as f:
+        data = json.load(f)
+        return data
+    
 class EvaluationHelper:
     def __init__(self, sampling_rate, device, backbone="cnn14") -> None:
 
@@ -62,13 +74,14 @@ class EvaluationHelper:
             )
             
         if self.sampling_rate == 16000:
-            self._stft = Audio.TacotronSTFT(512,512,512,64,16000,50,8000)
+            self._stft = Audio.TacotronSTFT(512,160,512,64,16000,50,8000)
+        elif self.sampling_rate == 32000:
+            self._stft = Audio.TacotronSTFT(1024,320,1024,64,32000,50,14000)
         else:
             raise ValueError(
-                "We only support the evaluation on 16kHz sampling rate."
+                "We only support the evaluation on 16kHz and 32kHz sampling rate."
             )
         
-
         self.mel_model.eval()
         self.mel_model.to(self.device)
         self.fbin_mean, self.fbin_std = None, None
@@ -78,13 +91,12 @@ class EvaluationHelper:
         o_filepath,
         resultpath,
         limit_num,
-        same_name=False,
-        number_of_bins=10,
-        evaluation_num=10,
-        cache_folder="./results/mnist_toy_example_ndb_cache",
-        iter_num=40,
     ):
-
+        self.file_init_check(o_filepath)
+        self.file_init_check(resultpath)
+        
+        same_name=self.get_filename_intersection_ratio(o_filepath, resultpath)
+        
         # gsm = self.getgsmscore(o_filepath, resultpath, iter_num)
 
         # ndb = self.getndbscore(
@@ -94,7 +106,33 @@ class EvaluationHelper:
         metrics = self.calculate_metrics(o_filepath, resultpath, same_name, limit_num)
         
         return metrics
+    
+    def file_init_check(self, dir):
+        assert os.path.exists(dir), "The path does not exist %s" % dir
+        assert len(os.listdir(dir)) > 1, "There is no files in %s" % dir
 
+    def get_filename_intersection_ratio(self, dir1, dir2, threshold=0.99):
+        self.datalist1 = [os.path.join(dir1, x) for x in os.listdir(dir1)]
+        self.datalist1 = sorted(self.datalist1)
+
+        self.datalist2 = [os.path.join(dir2, x) for x in os.listdir(dir2)]
+        self.datalist2 = sorted(self.datalist2)
+        
+        data_dict1 = {os.path.basename(x): x for x in self.datalist1}
+        data_dict2 = {os.path.basename(x): x for x in self.datalist2}
+        
+        keyset1 = set(data_dict1.keys())
+        keyset2 = set(data_dict2.keys())
+        
+        intersect_keys = keyset1.intersection(keyset2)
+        
+        if(len(intersect_keys)/len(keyset1) > threshold and len(intersect_keys)/len(keyset2) > threshold):
+            print("+Two path have %s intersection files out of total %s & %s files. Processing two folder with same_name=True" % (len(intersect_keys), len(keyset1), len(keyset2)))
+            return True
+        else:
+            print("-Two path have %s intersection files out of total %s & %s files. Processing two folder with same_name=False" % (len(intersect_keys), len(keyset1), len(keyset2)))
+            return False
+        
     # def getndbscore(
     #     self,
     #     output,
@@ -290,7 +328,7 @@ class EvaluationHelper:
         
         metric_kl = calculate_kl(featuresdict_1, featuresdict_2, "logits", same_name)
         out.update(metric_kl)
-        # if cfg.have_isc:
+
         metric_isc = calculate_isc(
             featuresdict_1,
             feat_layer_name="logits",
@@ -299,7 +337,7 @@ class EvaluationHelper:
             rng_seed=2020,
         )
         out.update(metric_isc)
-        # if cfg.have_fid:
+
         metric_fid = calculate_fid(
             featuresdict_1, featuresdict_2, feat_layer_name="2048"
         )
@@ -327,39 +365,41 @@ class EvaluationHelper:
         print(limit_num)
         print(
             f'KL: {out.get("kullback_leibler_divergence", float("nan")):8.5f};',
-            f'ISc: {out.get("inception_score_mean", float("nan")):8.5f} ({out.get("inception_score_std", float("nan")):5f});',
-            f'FID: {out.get("frechet_inception_distance", float("nan")):8.5f};',
-            f'KID: {out.get("kernel_inception_distance_mean", float("nan")):.5f}',
-            f'({out.get("kernel_inception_distance_std", float("nan")):.5f})',
-            f'FAD: {out.get("frechet_audio_distance", float("nan")):.5f}',
             f'PSNR: {out.get("psnr", float("nan")):.5f}',
             f'SSIM: {out.get("ssim", float("nan")):.5f}',
+            f'ISc: {out.get("inception_score_mean", float("nan")):8.5f} ({out.get("inception_score_std", float("nan")):5f});',
+            f'KID: {out.get("kernel_inception_distance_mean", float("nan")):.5f}',
+            f'({out.get("kernel_inception_distance_std", float("nan")):.5f})',
+            f'FID: {out.get("frechet_inception_distance", float("nan")):8.5f};',
+            f'FAD: {out.get("frechet_audio_distance", float("nan")):.5f}',
         )
         result = {
             "kullback_leibler_divergence": out.get(
                 "kullback_leibler_divergence", float("nan")
             ),
+            "psnr": out.get(
+                "psnr", float("nan")
+            ),
+            "ssim": out.get(
+                "ssim", float("nan")
+            ),
             "inception_score_mean": out.get("inception_score_mean", float("nan")),
             "inception_score_std": out.get("inception_score_std", float("nan")),
-            "frechet_inception_distance": out.get(
-                "frechet_inception_distance", float("nan")
-            ),
-            "frechet_audio_distance": out.get(
-                "frechet_audio_distance", float("nan")
-            ),
             "kernel_inception_distance_mean": out.get(
                 "kernel_inception_distance_mean", float("nan")
             ),
             "kernel_inception_distance_std": out.get(
                 "kernel_inception_distance_std", float("nan")
             ),
-            "PSNR": out.get(
-                "psnr", float("nan")
+            "frechet_inception_distance": out.get(
+                "frechet_inception_distance", float("nan")
             ),
-            "SSIM": out.get(
-                "ssim", float("nan")
+            "frechet_audio_distance": out.get(
+                "frechet_audio_distance", float("nan")
             ),
         }
+        json_path=output+".json"
+        write_json(result, json_path)
         return result
 
     def get_featuresdict(self, dataloader):
@@ -401,3 +441,62 @@ class EvaluationHelper:
         assert samples.shape[0] >= number_to_use
         rand_order = np.random.permutation(samples.shape[0])
         return samples[rand_order[: samples.shape[0]], :]
+
+if __name__ == "__main__":
+    import yaml
+    import argparse
+    from audiogen_eval import EvaluationHelper
+    import torch
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "-g",
+        "--generation_result_path",
+        type=str,
+        required=False,
+        help="Audio sampling rate during evaluation",
+        default="/mnt/fast/datasets/audio/audioset/2million_audioset_wav/balanced_train_segments",
+    )
+
+    parser.add_argument(
+        "-t",
+        "--target_audio_path",
+        type=str,
+        required=False,
+        help="Audio sampling rate during evaluation",
+        default="/mnt/fast/datasets/audio/audioset/2million_audioset_wav/eval_segments",
+    )
+
+    parser.add_argument(
+        "-sr",
+        "--sampling_rate",
+        type=int,
+        required=False,
+        help="Audio sampling rate during evaluation",
+        default=16000,
+    )
+
+    parser.add_argument(
+        "-l",
+        "--limit_num",
+        type=int,
+        required=False,
+        help="Audio clip numbers limit for evaluation",
+        default=None,
+    )
+    
+    args = parser.parse_args()
+
+    device = torch.device(f"cuda:{0}")
+
+    evaluator = EvaluationHelper(args.sampling_rate, device)
+
+    metrics = evaluator.main(
+        args.generation_result_path,
+        args.target_audio_path,
+        limit_num=args.limit_num,
+        same_name=args.same_name,
+    )
+
+    print(metrics)

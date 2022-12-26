@@ -114,7 +114,6 @@ class MelPairedDataset(torch.utils.data.Dataset):
         energy = torch.squeeze(energy, 0).numpy().astype(np.float32)
         return melspec, energy
 
-
 class MelDataset(torch.utils.data.Dataset):
     def __init__(
         self,

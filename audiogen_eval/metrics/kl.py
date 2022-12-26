@@ -69,7 +69,7 @@ def calculate_kl(featuresdict_1, featuresdict_2, feat_layer_name, same_name=True
             continue
         features_1.extend(
             [sharedkey_to_feats_1[sharedkey]]
-        )  # 在将生成的特征，直接放features_1
+        )  
         # print("feature_step",len(features_1))
         # print("share",sharedkey_to_feats_1[sharedkey])
         # just replicating the ground truth logits to compare with multiple samples in prediction
