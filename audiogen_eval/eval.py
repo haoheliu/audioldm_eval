@@ -1,6 +1,6 @@
 import sys
 
-from audiogen_eval.datasets.load_mel import MelDataset, load_npy_data, MelPairedDataset
+from audiogen_eval.datasets.load_mel import load_npy_data, MelPairedDataset, WaveDataset
 from audiogen_eval.metrics.ndb import *
 import numpy as np
 import argparse
@@ -40,7 +40,6 @@ class EvaluationHelper:
             use_pca=False, 
             use_activation=False,
             verbose=True,
-            audio_load_worker=1
         )
 
         self.frechet.model = self.frechet.model.to(device)
@@ -273,13 +272,9 @@ class EvaluationHelper:
         num_workers = 0
 
         outputloader = DataLoader(
-            MelDataset(
+            WaveDataset(
                 output,
-                self._stft,
                 self.sampling_rate,
-                self.fbin_mean,
-                self.fbin_std,
-                augment=True,
                 limit_num=limit_num,
             ),
             batch_size=1,
@@ -288,12 +283,9 @@ class EvaluationHelper:
         )
         
         resultloader = DataLoader(
-            MelDataset(
+            WaveDataset(
                 result,
-                self._stft,
                 self.sampling_rate,
-                self.fbin_mean,
-                self.fbin_std,
                 limit_num=limit_num,
             ),
             batch_size=1,
@@ -313,7 +305,7 @@ class EvaluationHelper:
             ),
             batch_size=1,
             sampler=None,
-            num_workers=8,
+            num_workers=16,
         )
 
         out = {}
@@ -409,7 +401,7 @@ class EvaluationHelper:
 
         # transforms=StandardNormalizeAudio()
 
-        for mel, waveform, filename in tqdm(dataloader):
+        for waveform, filename in tqdm(dataloader):
             metadict = {
                 "file_path_": filename,
             }
