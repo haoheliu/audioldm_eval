@@ -355,7 +355,8 @@ class EvaluationHelper:
         print("\n")
         print(limit_num)
         print(
-            f'KL: {out.get("kullback_leibler_divergence", float("nan")):8.5f};',
+            f'KL_Sigmoid: {out.get("kullback_leibler_divergence_sigmoid", float("nan")):8.5f};',
+            f'KL_Softmax: {out.get("kullback_leibler_divergence_softmax", float("nan")):8.5f};',
             f'PSNR: {out.get("psnr", float("nan")):.5f}',
             f'SSIM: {out.get("ssim", float("nan")):.5f}',
             f'ISc: {out.get("inception_score_mean", float("nan")):8.5f} ({out.get("inception_score_std", float("nan")):5f});',
@@ -365,8 +366,11 @@ class EvaluationHelper:
             f'FAD: {out.get("frechet_audio_distance", float("nan")):.5f}',
         )
         result = {
-            "kullback_leibler_divergence": out.get(
-                "kullback_leibler_divergence", float("nan")
+            "kullback_leibler_divergence_sigmoid": out.get(
+                "kullback_leibler_divergence_sigmoid", float("nan")
+            ),
+            "kullback_leibler_divergence_softmax": out.get(
+                "kullback_leibler_divergence_softmax", float("nan")
             ),
             "psnr": out.get(
                 "psnr", float("nan")
