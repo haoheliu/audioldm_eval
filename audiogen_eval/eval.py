@@ -89,12 +89,12 @@ class EvaluationHelper:
         self,
         o_filepath,
         resultpath,
-        limit_num,
+        limit_num = None,
     ):
         self.file_init_check(o_filepath)
         self.file_init_check(resultpath)
         
-        same_name=self.get_filename_intersection_ratio(o_filepath, resultpath)
+        same_name=self.get_filename_intersection_ratio(o_filepath, resultpath, limit_num=limit_num)
         
         # gsm = self.getgsmscore(o_filepath, resultpath, iter_num)
 
@@ -110,7 +110,7 @@ class EvaluationHelper:
         assert os.path.exists(dir), "The path does not exist %s" % dir
         assert len(os.listdir(dir)) > 1, "There is no files in %s" % dir
 
-    def get_filename_intersection_ratio(self, dir1, dir2, threshold=0.99):
+    def get_filename_intersection_ratio(self, dir1, dir2, threshold=0.99, limit_num=None):
         self.datalist1 = [os.path.join(dir1, x) for x in os.listdir(dir1)]
         self.datalist1 = sorted(self.datalist1)
 
@@ -124,7 +124,6 @@ class EvaluationHelper:
         keyset2 = set(data_dict2.keys())
         
         intersect_keys = keyset1.intersection(keyset2)
-        
         if(len(intersect_keys)/len(keyset1) > threshold and len(intersect_keys)/len(keyset2) > threshold):
             print("+Two path have %s intersection files out of total %s & %s files. Processing two folder with same_name=True" % (len(intersect_keys), len(keyset1), len(keyset2)))
             return True
@@ -402,29 +401,34 @@ class EvaluationHelper:
         # transforms=StandardNormalizeAudio()
 
         for waveform, filename in tqdm(dataloader):
-            metadict = {
-                "file_path_": filename,
-            }
-            waveform = waveform.squeeze(1)
+            try:
+                metadict = {
+                    "file_path_": filename,
+                }
+                waveform = waveform.squeeze(1)
 
-            # batch = transforms(batch)
-            waveform = waveform.float().to(self.device)
+                # batch = transforms(batch)
+                waveform = waveform.float().to(self.device)
 
-            with torch.no_grad():
-                featuresdict = self.mel_model(waveform)
+                with torch.no_grad():
+                    featuresdict = self.mel_model(waveform)
 
-            # featuresdict = self.mel_model.convert_features_tuple_to_dict(features)
-            featuresdict = {k: [v.cpu()] for k, v in featuresdict.items()}
+                # featuresdict = self.mel_model.convert_features_tuple_to_dict(features)
+                featuresdict = {k: [v.cpu()] for k, v in featuresdict.items()}
 
-            if out is None:
-                out = featuresdict
-            else:
-                out = {k: out[k] + featuresdict[k] for k in out.keys()}
+                if out is None:
+                    out = featuresdict
+                else:
+                    out = {k: out[k] + featuresdict[k] for k in out.keys()}
 
-            if out_meta is None:
-                out_meta = metadict
-            else:
-                out_meta = {k: out_meta[k] + metadict[k] for k in out_meta.keys()}
+                if out_meta is None:
+                    out_meta = metadict
+                else:
+                    out_meta = {k: out_meta[k] + metadict[k] for k in out_meta.keys()}
+            except Exception as e:
+                import ipdb; ipdb.set_trace()
+                print("PANNs Inference error: ", e)
+                continue
 
         out = {k: torch.cat(v, dim=0) for k, v in out.items()}
         return {**out, **out_meta}

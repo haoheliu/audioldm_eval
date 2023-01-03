@@ -131,7 +131,9 @@ class WaveDataset(torch.utils.data.Dataset):
         while True:
             try:
                 filename = self.datalist[index]
-                waveform = self.get_mel_from_file(filename)
+                waveform = self.read_from_file(filename)
+                if(waveform.size(-1) < 1):
+                    raise ValueError("empty file %s" % filename)
                 break
             except Exception as e:
                 print(index, e)
@@ -142,7 +144,7 @@ class WaveDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.datalist)
 
-    def get_mel_from_file(self, audio_file):
+    def read_from_file(self, audio_file):
         audio, file_sr = torchaudio.load(audio_file)
         audio = audio - audio.mean()
 

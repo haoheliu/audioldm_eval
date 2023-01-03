@@ -76,20 +76,20 @@ def calculate_kl(featuresdict_1, featuresdict_2, feat_layer_name, same_name=True
         # samples_num = len(sharedkey_to_feats_1[sharedkey])
         features_2.extend([feat_2])
 
-
     features_1 = torch.stack(features_1, dim=0)
     features_2 = torch.stack(features_2, dim=0)
 
-    # features_1 = features_1.softmax(dim=1)  # TODO
-    # features_2 = features_2.softmax(dim=1)
-
-    features_1 = features_1.sigmoid()  
-    features_2 = features_2.sigmoid()
-    
-    kl = torch.nn.functional.kl_div(
-        (features_1 + EPS).log(), features_2, reduction="sum"
+    # AudioGen use this formulation
+    kl_softmax = torch.nn.functional.kl_div(
+        (features_1.softmax(dim=1) + EPS).log(), features_2.softmax(dim=1), reduction="sum"
     ) / len(features_1)
-    return {"kullback_leibler_divergence": float(kl)}
+
+    # For multi-class audio clips, this formulation could be better
+    kl_sigmoid = torch.nn.functional.kl_div(
+        (features_1.sigmoid() + EPS).log(), features_2.sigmoid(), reduction="sum"
+    ) / len(features_1)
+    
+    return {"kullback_leibler_divergence_sigmoid": float(kl_sigmoid), "kullback_leibler_divergence_softmax": float(kl_softmax)}
 
 
 def test_input(featuresdict_1, featuresdict_2, feat_layer_name, dataset_name, classes):
