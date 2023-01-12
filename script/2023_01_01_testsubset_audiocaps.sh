@@ -37,4 +37,7 @@
 
 python3 /mnt/fast/nobackup/users/hl01486/projects/general_audio_generation/conditional_transfer/audiogen_eval/test/test.py -g /mnt/fast/nobackup/scratch4weeks/hl01486/exps/audio_generation/stablediffusion/LDM/audioverse/2023_01_01_classifier_free_guidance_v1/audiocaps_text_randseed_checkpoint-global_step=99999.ckpt_1.0_200_1.0_seed_6895 -t /mnt/fast/nobackup/users/hl01486/datasets/audiocaps_test_subset/0
 
-python3 /mnt/fast/nobackup/users/hl01486/projects/general_audio_generation/conditional_transfer/audiogen_eval/test/test.py -g /mnt/fast/nobackup/scratch4weeks/hl01486/exps/audio_generation/stablediffusion/LDM/audioverse/2023_01_01_classifier_free_guidance_v1/audiocaps_text_randseed_checkpoint-global_step=99999.ckpt_1.0_200_1.0_seed_8952 -t /mnt/fast/nobackup/users/hl01486/datasets/audiocaps_test_subset/0
+python3 /mnt/fast/nobackup/users/hl01486/projects/general_audio_generation/conditional_transfer/audiogen_eval/test/test.py -g /mnt/fast/nobackup/scratch4weeks/hl01486/exps/audio_generation/stablediffusion/LDM/audioverse/2023_01_06_v2_AC_F4_S_v1/audiocaps_text_DDIM_checkpoint-fad-4.07-global_step=544999.ckpt_2.0_200_1.0_subset_2 -t /mnt/fast/nobackup/users/hl01486/datasets/audiocaps_test_subset/0
+
+
+

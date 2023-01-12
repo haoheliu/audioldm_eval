@@ -7,4 +7,4 @@ python3 /mnt/fast/nobackup/users/hl01486/projects/general_audio_generation/condi
 python3 /mnt/fast/nobackup/users/hl01486/projects/general_audio_generation/conditional_transfer/audiogen_eval/test/test.py -g /mnt/fast/nobackup/scratch4weeks/hl01486/exps/audio_generation/stablediffusion/autoencoderkl16k/audioverse/2022-12-07-kl-f4-ch128-no-time-stride-num_res_blocks-2-klweight-1_8_128_4.5e-05_v1.0.2/autoencoder_result/1030000/fbank_vocoder_gt_wave -t /mnt/fast/datasets/audio/audioset/2million_audioset_wav/eval_segments
 
 
-python3 /mnt/fast/nobackup/users/hl01486/projects/general_audio_generation/conditional_transfer/audiogen_eval/test/test.py -g /mnt/fast/nobackup/scratch4weeks/hl01486/exps/audio_generation/diffsound/diffsound/audiocaps_965 -t /mnt/fast/nobackup/users/hl01486/datasets/audiocaps_test_subset/0
+python3 /mnt/fast/nobackup/users/hl01486/projects/general_audio_generation/conditional_transfer/audiogen_eval/test/test.py -g /mnt/fast/datasets/audio/audioset/2million_audioset_wav/eval_segments -t /mnt/fast/datasets/audio/audioset/2million_audioset_wav/eval_segments

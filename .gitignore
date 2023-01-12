@@ -4,3 +4,5 @@ ckpt/
 *.npy
 *.egg-info
 __pycache__
+vctk_test
+.DS_*

@@ -35,7 +35,7 @@ def path_to_sharedkey(path, dataset_name, classes=None):
 def calculate_kl(featuresdict_1, featuresdict_2, feat_layer_name, same_name=True):
     # test_input(featuresdict_1, featuresdict_2, feat_layer_name, dataset_name, classes)
     if(not same_name):
-        return {"kullback_leibler_divergence": float(-1)}
+        return {"kullback_leibler_divergence_sigmoid": float(-1), "kullback_leibler_divergence_softmax": float(-1)}
     
     print(
         'KL: Assuming that `input2` is "pseudo" target and `input1` is prediction. KL(input2_i||input1_i)'

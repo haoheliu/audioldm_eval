@@ -62,8 +62,8 @@ class MelPairedDataset(torch.utils.data.Dataset):
             try:
                 filename1 = self.datalist1[index]
                 filename2 = self.datalist2[index]
-                mel1, _,_ = self.get_mel_from_file(filename1)
-                mel2, _,_ = self.get_mel_from_file(filename2)
+                mel1, _, audio1 = self.get_mel_from_file(filename1)
+                mel2, _, audio2 = self.get_mel_from_file(filename2)
                 break
             except Exception as e:
                 print(index, e)
@@ -72,7 +72,7 @@ class MelPairedDataset(torch.utils.data.Dataset):
         # if(self.fbin_mean is not None):
         #     mel = (mel - self.fbin_mean) / self.fbin_std
         min_len = min(mel1.shape[-1], mel2.shape[-1])
-        return mel1[...,:min_len], mel2[...,:min_len], os.path.basename(filename1)
+        return mel1[...,:min_len], mel2[...,:min_len], os.path.basename(filename1), (audio1, audio2)
 
     def __len__(self):
         return len(self.datalist1)

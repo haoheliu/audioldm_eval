@@ -16,7 +16,7 @@ from audiogen_eval import calculate_fid, calculate_isc, calculate_kid, calculate
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from skimage.metrics import structural_similarity as ssim
 from audiogen_eval.feature_extractors.panns import Cnn14, Cnn14_16k
-
+from ssr_eval.metrics import AudioMetrics
 import audiogen_eval.audio as Audio
 
 def write_json(my_dict, fname):
@@ -41,7 +41,7 @@ class EvaluationHelper:
             use_activation=False,
             verbose=True,
         )
-
+        self.lsd_metric = AudioMetrics(self.sampling_rate)
         self.frechet.model = self.frechet.model.to(device)
 
         features_list = ["2048", "logits"]
@@ -242,6 +242,46 @@ class EvaluationHelper:
     #     plt.legend()
     #     plt.show()
 
+    def calculate_lsd(self, pairedloader, same_name=True, time_offset=160*7):
+        if(same_name == False):
+            return {
+                "lsd": -1,
+                "ssim_stft": -1,
+            }
+        print("Calculating LSD using a time offset of %s ..." % time_offset)
+        lsd_avg = []
+        ssim_stft_avg = []
+        for _, _, filename, (audio1, audio2) in tqdm(pairedloader):
+            audio1 = audio1.cpu().numpy()[0, 0]
+            audio2 = audio2.cpu().numpy()[0, 0]
+            
+            # If you use HIFIGAN (verified on 2023-01-12), you need seven frames' offset
+            audio1 = audio1[time_offset: ]
+            
+            audio1 = audio1 - np.mean(audio1)
+            audio2 = audio2 - np.mean(audio2)
+            
+            audio1 = audio1 / np.max(np.abs(audio1))
+            audio2 = audio2 / np.max(np.abs(audio2))
+            
+            min_len = min(audio1.shape[0], audio2.shape[0])
+            
+            audio1, audio2 = audio1[:min_len], audio2[:min_len]
+            
+            result = self.lsd(audio1, audio2)
+            
+            lsd_avg.append(result["lsd"])
+            ssim_stft_avg.append(result["ssim"])
+            
+        return {
+            "lsd": np.mean(lsd_avg),
+            "ssim_stft": np.mean(ssim_stft_avg)
+        }
+        
+    def lsd(self, audio1, audio2):
+        result = self.lsd_metric.evaluation(audio1, audio2, None)
+        return result
+
     def calculate_psnr_ssim(self, pairedloader, same_name=True):
         if(same_name == False):
             return {
@@ -250,7 +290,7 @@ class EvaluationHelper:
             }
         psnr_avg = []
         ssim_avg = []
-        for mel_gen, mel_target, filename in tqdm(pairedloader):
+        for mel_gen, mel_target, filename, _ in tqdm(pairedloader):
             mel_gen = mel_gen.cpu().numpy()[0]
             mel_target = mel_target.cpu().numpy()[0]
             psnrval = psnr(mel_gen, mel_target)
@@ -308,6 +348,10 @@ class EvaluationHelper:
         )
 
         out = {}
+
+        metric_lsd = self.calculate_lsd(pairedloader, same_name=same_name)
+        out.update(metric_lsd)
+        
         print("Extracting features from %s." % result)
         featuresdict_2 = self.get_featuresdict(resultloader)
         print("Extracting features from %s." % output)
@@ -364,19 +408,33 @@ class EvaluationHelper:
             f'({out.get("kernel_inception_distance_std", float("nan")):.5f})',
             f'FID: {out.get("frechet_inception_distance", float("nan")):8.5f};',
             f'FAD: {out.get("frechet_audio_distance", float("nan")):.5f}',
+            f'LSD: {out.get("lsd", float("nan")):.5f}',
+            f'SSIM_STFT: {out.get("ssim_stft", float("nan")):.5f}',
         )
         result = {
+            "frechet_inception_distance": out.get(
+                "frechet_inception_distance", float("nan")
+            ),
+            "frechet_audio_distance": out.get(
+                "frechet_audio_distance", float("nan")
+            ),
             "kullback_leibler_divergence_sigmoid": out.get(
                 "kullback_leibler_divergence_sigmoid", float("nan")
             ),
             "kullback_leibler_divergence_softmax": out.get(
                 "kullback_leibler_divergence_softmax", float("nan")
             ),
+            "lsd": out.get(
+                "lsd", float("nan")
+            ),
             "psnr": out.get(
                 "psnr", float("nan")
             ),
             "ssim": out.get(
                 "ssim", float("nan")
+            ),
+            "ssim_stft": out.get(
+                "ssim_stft", float("nan")
             ),
             "inception_score_mean": out.get("inception_score_mean", float("nan")),
             "inception_score_std": out.get("inception_score_std", float("nan")),
@@ -385,12 +443,6 @@ class EvaluationHelper:
             ),
             "kernel_inception_distance_std": out.get(
                 "kernel_inception_distance_std", float("nan")
-            ),
-            "frechet_inception_distance": out.get(
-                "frechet_inception_distance", float("nan")
-            ),
-            "frechet_audio_distance": out.get(
-                "frechet_audio_distance", float("nan")
             ),
         }
         json_path=output+".json"
