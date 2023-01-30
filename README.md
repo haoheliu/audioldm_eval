@@ -16,9 +16,9 @@ Second, generate test dataset by
 python3 gen_test_file.py
 ```
 
-Finally, perform a test run
+Finally, perform a test run. A result for reference is attached [here](https://github.com/haoheliu/audioldm_eval/example/paired_ref.json).
 ```shell
-python3 test.py
+python3 test.py # Evaluate and save the json file to disk (example/paired.json)
 ```
 
 ## Evaluation metrics
@@ -63,4 +63,10 @@ metrics = evaluator.main(
     target_audio_path,
     limit_num=None # If you only intend to evaluate X (int) pairs of data, set limit_num=X
 )
+```
+
+
+## Reference score
+```json
+{"frechet_distance": 72.63002990255421, "frechet_audio_distance": 25.949492409315276, "kullback_leibler_divergence_sigmoid": 4.060464859008789, "kullback_leibler_divergence_softmax": 4.6832990646362305, "lsd": 7.9630534458160405, "psnr": 5.932699156280608, "ssim": 0.12951973623930071, "ssim_stft": 0.03505520645499254, "inception_score_mean": 1.4345015369359302, "inception_score_std": 0.23258767659121407, "kernel_inception_distance_mean": 0.08276224720982127, "kernel_inception_distance_std": 1.8537815886140217e-07}
 ```
