@@ -25,9 +25,9 @@ from shutil import rmtree
 from setuptools import find_packages, setup, Command
 
 # Package meta-data.
-NAME = "audiogen_eval"
+NAME = "audioldm_eval"
 DESCRIPTION = "This package is written for the evaluation of audio generation model."
-URL = "https://github.com/haoheliu/audiogen_eval"
+URL = "https://github.com/haoheliu/audioldm_eval"
 EMAIL = "haoheliu@gmail.com"
 AUTHOR = "Haohe Liu"
 REQUIRES_PYTHON = ">=3.6.0"
@@ -36,6 +36,14 @@ VERSION = "0.0.1"
 # What packages are required for this module to be executed?
 REQUIRED = [
     "torch>=1.11.0",
+    "torchaudio",
+    "scikit-image",
+    "torchlibrosa",
+    "absl-py",
+    "scipy",
+    "tqdm",
+    "ssr_eval",
+    "librosa",
 ]
 
 # What packages are optional?

@@ -6,3 +6,8 @@ ckpt/
 __pycache__
 vctk_test
 .DS_*
+script/*
+datasets/*
+test_fad/*
+*.ckpt
+*.json

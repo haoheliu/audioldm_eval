@@ -68,7 +68,6 @@ def add_noise(data, stddev):
   gauss = np.random.normal(0, stddev, (num_samples)) * max_value
   return data + gauss
 
-
 def gen_sine_wave(freq=600,
                   length_seconds=6,
                   sample_rate=_SAMPLE_RATE,
@@ -80,12 +79,10 @@ def gen_sine_wave(freq=600,
     samples = add_noise(samples, param)
   return np.asarray(2**15 * samples, dtype=np.int16)
 
-
 def main(argv):
   del argv  # Unused.
-  for traget, count, param in [("background", 10, None), ("test1", 5, 0.0001),
-                               ("test2", 5, 0.00001)]:
-    output_dir = os.path.join(FLAGS.test_files, traget)
+  for traget, count, param in [("reference", 50, 0.0), ("paired", 50, 0.001), ("unpaired", 25, 0.001)]:
+    output_dir = os.path.join(FLAGS.test_files, "example", traget)
     create_dir(output_dir)
     print("output_dir:", output_dir)
     frequencies = np.linspace(100, 1000, count).tolist()
@@ -97,4 +94,5 @@ def main(argv):
 
 
 if __name__ == "__main__":
+  os.makedirs("example", exist_ok=True)
   app.run(main)

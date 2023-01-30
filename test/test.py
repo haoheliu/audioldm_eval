@@ -1,6 +1,6 @@
 import yaml
 import argparse
-from audiogen_eval import EvaluationHelper
+from audioldm_eval import EvaluationHelper
 import torch
 
 parser = argparse.ArgumentParser()
@@ -11,7 +11,7 @@ parser.add_argument(
     type=str,
     required=False,
     help="Audio sampling rate during evaluation",
-    default="/mnt/fast/datasets/audio/audioset/2million_audioset_wav/balanced_train_segments",
+    default="./test/test_fad/test1",
 )
 
 parser.add_argument(
@@ -20,7 +20,7 @@ parser.add_argument(
     type=str,
     required=False,
     help="Audio sampling rate during evaluation",
-    default="/mnt/fast/datasets/audio/audioset/2million_audioset_wav/eval_segments",
+    default="./test/test_fad/test2",
 )
 
 parser.add_argument(
@@ -42,6 +42,8 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
+
+assert args.sampling_rate == 16000, "We only support 16000Hz sampling rate currently"
 
 device = torch.device(f"cuda:{0}")
 

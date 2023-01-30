@@ -5,7 +5,7 @@ from torchlibrosa.stft import Spectrogram, LogmelFilterBank
 from torchlibrosa.augmentation import SpecAugmentation
 import os
 
-from audiogen_eval.feature_extractors.panns.pytorch_utils import (
+from audioldm_eval.feature_extractors.panns.pytorch_utils import (
     do_mixup,
     interpolate,
     pad_framewise_output,
@@ -315,7 +315,11 @@ class Cnn14(nn.Module):
         embedding = F.relu_(x).clone()
         logits = self.fc_audioset(F.relu_(x)).clone()
         clipwise_output = torch.sigmoid(logits)
-        output_dict = {"logits": logits, "2048": embedding, "clipwise_output": clipwise_output}
+        output_dict = {
+            "logits": logits,
+            "2048": embedding,
+            "clipwise_output": clipwise_output,
+        }
 
         return output_dict
 

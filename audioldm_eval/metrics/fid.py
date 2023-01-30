@@ -22,7 +22,7 @@ def calculate_fid(
         "sigma": np.cov(features_2.numpy(), rowvar=False),
     }
 
-    print("Computing Frechet Inception Distance")
+    print("Computing Frechet Distance (PANNs)")
 
     mu1, sigma1 = stat_1["mu"], stat_1["sigma"]
     mu2, sigma2 = stat_2["mu"], stat_2["sigma"]
@@ -65,5 +65,5 @@ def calculate_fid(
     fid = diff.dot(diff) + np.trace(sigma1) + np.trace(sigma2) - 2 * tr_covmean
 
     return {
-        "frechet_inception_distance": float(fid),
+        "frechet_distance": float(fid),
     }

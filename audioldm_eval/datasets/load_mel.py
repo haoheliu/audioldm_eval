@@ -1,12 +1,9 @@
-import librosa
 import torch
-from torch.utils.data import Dataset
 import os
 import numpy as np
-import pandas as pd
-import json
 import torchaudio
 from tqdm import tqdm
+
 
 class MelPairedDataset(torch.utils.data.Dataset):
     def __init__(
@@ -25,13 +22,13 @@ class MelPairedDataset(torch.utils.data.Dataset):
 
         self.datalist2 = [os.path.join(datadir2, x) for x in os.listdir(datadir2)]
         self.datalist2 = sorted(self.datalist2)
-        
+
         if limit_num is not None:
             self.datalist1 = self.datalist1[:limit_num]
             self.datalist2 = self.datalist2[:limit_num]
-            
+
         self.align_two_file_list()
-        
+
         self._stft = _stft
         self.sr = sr
         self.augment = augment
@@ -46,15 +43,15 @@ class MelPairedDataset(torch.utils.data.Dataset):
     def align_two_file_list(self):
         data_dict1 = {os.path.basename(x): x for x in self.datalist1}
         data_dict2 = {os.path.basename(x): x for x in self.datalist2}
-        
+
         keyset1 = set(data_dict1.keys())
         keyset2 = set(data_dict2.keys())
-        
+
         intersect_keys = keyset1.intersection(keyset2)
-        
+
         self.datalist1 = [data_dict1[k] for k in intersect_keys]
         self.datalist2 = [data_dict2[k] for k in intersect_keys]
-        
+
         print("Two path have %s intersection files" % len(intersect_keys))
 
     def __getitem__(self, index):
@@ -72,7 +69,12 @@ class MelPairedDataset(torch.utils.data.Dataset):
         # if(self.fbin_mean is not None):
         #     mel = (mel - self.fbin_mean) / self.fbin_std
         min_len = min(mel1.shape[-1], mel2.shape[-1])
-        return mel1[...,:min_len], mel2[...,:min_len], os.path.basename(filename1), (audio1, audio2)
+        return (
+            mel1[..., :min_len],
+            mel2[..., :min_len],
+            os.path.basename(filename1),
+            (audio1, audio2),
+        )
 
     def __len__(self):
         return len(self.datalist1)
@@ -114,6 +116,7 @@ class MelPairedDataset(torch.utils.data.Dataset):
         energy = torch.squeeze(energy, 0).numpy().astype(np.float32)
         return melspec, energy
 
+
 class WaveDataset(torch.utils.data.Dataset):
     def __init__(
         self,
@@ -132,7 +135,7 @@ class WaveDataset(torch.utils.data.Dataset):
             try:
                 filename = self.datalist[index]
                 waveform = self.read_from_file(filename)
-                if(waveform.size(-1) < 1):
+                if waveform.size(-1) < 1:
                     raise ValueError("empty file %s" % filename)
                 break
             except Exception as e:
@@ -148,9 +151,9 @@ class WaveDataset(torch.utils.data.Dataset):
         audio, file_sr = torchaudio.load(audio_file)
         audio = audio - audio.mean()
 
-        if (file_sr != self.sr and file_sr == 32000 and self.sr==16000):
+        if file_sr != self.sr and file_sr == 32000 and self.sr == 16000:
             audio = audio[..., ::2]
-        elif(file_sr != self.sr):
+        elif file_sr != self.sr:
             audio = torchaudio.functional.resample(
                 audio, orig_freq=file_sr, new_freq=self.sr
             )

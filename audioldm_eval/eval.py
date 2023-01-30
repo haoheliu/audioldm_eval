@@ -1,35 +1,23 @@
-import sys
-
-from audiogen_eval.datasets.load_mel import load_npy_data, MelPairedDataset, WaveDataset
-from audiogen_eval.metrics.ndb import *
+import os
+from audioldm_eval.datasets.load_mel import load_npy_data, MelPairedDataset, WaveDataset
 import numpy as np
 import argparse
-import json
 
 import torch
 from torch.utils.data import DataLoader
-from audiogen_eval.feature_extractors.melception import Melception
 from tqdm import tqdm
-from audiogen_eval.metrics import gs
-from audiogen_eval.metrics.fad import FrechetAudioDistance
-from audiogen_eval import calculate_fid, calculate_isc, calculate_kid, calculate_kl
+from audioldm_eval.metrics.fad import FrechetAudioDistance
+from audioldm_eval import calculate_fid, calculate_isc, calculate_kid, calculate_kl
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from skimage.metrics import structural_similarity as ssim
-from audiogen_eval.feature_extractors.panns import Cnn14, Cnn14_16k
+from audioldm_eval.feature_extractors.panns import Cnn14
+from audioldm_eval.audio.tools import save_pickle, load_pickle, write_json, load_json
 from ssr_eval.metrics import AudioMetrics
-import audiogen_eval.audio as Audio
+import audioldm_eval.audio as Audio
 
-def write_json(my_dict, fname):
-    print("Save json file at "+fname)
-    json_str = json.dumps(my_dict)
-    with open(fname, 'w') as json_file:
-        json_file.write(json_str)
+import time
 
-def load_json(fname):
-    with open(fname,'r') as f:
-        data = json.load(f)
-        return data
-    
+
 class EvaluationHelper:
     def __init__(self, sampling_rate, device, backbone="cnn14") -> None:
 
@@ -37,7 +25,7 @@ class EvaluationHelper:
         self.backbone = backbone
         self.sampling_rate = sampling_rate
         self.frechet = FrechetAudioDistance(
-            use_pca=False, 
+            use_pca=False,
             use_activation=False,
             verbose=True,
         )
@@ -71,16 +59,16 @@ class EvaluationHelper:
             raise ValueError(
                 "We only support the evaluation on 16kHz and 32kHz sampling rate."
             )
-            
+
         if self.sampling_rate == 16000:
-            self._stft = Audio.TacotronSTFT(512,160,512,64,16000,50,8000)
+            self._stft = Audio.TacotronSTFT(512, 160, 512, 64, 16000, 50, 8000)
         elif self.sampling_rate == 32000:
-            self._stft = Audio.TacotronSTFT(1024,320,1024,64,32000,50,14000)
+            self._stft = Audio.TacotronSTFT(1024, 320, 1024, 64, 32000, 50, 14000)
         else:
             raise ValueError(
                 "We only support the evaluation on 16kHz and 32kHz sampling rate."
             )
-        
+
         self.mel_model.eval()
         self.mel_model.to(self.device)
         self.fbin_mean, self.fbin_std = None, None
@@ -89,161 +77,57 @@ class EvaluationHelper:
         self,
         o_filepath,
         resultpath,
-        limit_num = None,
+        limit_num=None,
     ):
         self.file_init_check(o_filepath)
         self.file_init_check(resultpath)
-        
-        same_name=self.get_filename_intersection_ratio(o_filepath, resultpath, limit_num=limit_num)
-        
-        # gsm = self.getgsmscore(o_filepath, resultpath, iter_num)
 
-        # ndb = self.getndbscore(
-        #     o_filepath, resultpath, number_of_bins, evaluation_num, cache_folder
-        # )
+        same_name = self.get_filename_intersection_ratio(
+            o_filepath, resultpath, limit_num=limit_num
+        )
 
         metrics = self.calculate_metrics(o_filepath, resultpath, same_name, limit_num)
-        
+
         return metrics
-    
+
     def file_init_check(self, dir):
         assert os.path.exists(dir), "The path does not exist %s" % dir
         assert len(os.listdir(dir)) > 1, "There is no files in %s" % dir
 
-    def get_filename_intersection_ratio(self, dir1, dir2, threshold=0.99, limit_num=None):
+    def get_filename_intersection_ratio(
+        self, dir1, dir2, threshold=0.99, limit_num=None
+    ):
         self.datalist1 = [os.path.join(dir1, x) for x in os.listdir(dir1)]
         self.datalist1 = sorted(self.datalist1)
 
         self.datalist2 = [os.path.join(dir2, x) for x in os.listdir(dir2)]
         self.datalist2 = sorted(self.datalist2)
-        
+
         data_dict1 = {os.path.basename(x): x for x in self.datalist1}
         data_dict2 = {os.path.basename(x): x for x in self.datalist2}
-        
+
         keyset1 = set(data_dict1.keys())
         keyset2 = set(data_dict2.keys())
-        
+
         intersect_keys = keyset1.intersection(keyset2)
-        if(len(intersect_keys)/len(keyset1) > threshold and len(intersect_keys)/len(keyset2) > threshold):
-            print("+Two path have %s intersection files out of total %s & %s files. Processing two folder with same_name=True" % (len(intersect_keys), len(keyset1), len(keyset2)))
+        if (
+            len(intersect_keys) / len(keyset1) > threshold
+            and len(intersect_keys) / len(keyset2) > threshold
+        ):
+            print(
+                "+Two path have %s intersection files out of total %s & %s files. Processing two folder with same_name=True"
+                % (len(intersect_keys), len(keyset1), len(keyset2))
+            )
             return True
         else:
-            print("-Two path have %s intersection files out of total %s & %s files. Processing two folder with same_name=False" % (len(intersect_keys), len(keyset1), len(keyset2)))
+            print(
+                "-Two path have %s intersection files out of total %s & %s files. Processing two folder with same_name=False"
+                % (len(intersect_keys), len(keyset1), len(keyset2))
+            )
             return False
-        
-    # def getndbscore(
-    #     self,
-    #     output,
-    #     result,
-    #     number_of_bins=30,
-    #     evaluation_num=50,
-    #     cache_folder="./results/mnist_toy_example_ndb_cache",
-    # ):
-    #     print("calculating the ndb score:")
-    #     num_workers = 0
 
-    #     outputloader = DataLoader(
-    #         MelDataset(
-    #             output,
-    #             self._stft,
-    #             self.sampling_rate,
-    #             self.fbin_mean,
-    #             self.fbin_std,
-    #             augment=True,
-    #         ),
-    #         batch_size=1,
-    #         sampler=None,
-    #         num_workers=num_workers,
-    #     )
-    #     resultloader = DataLoader(
-    #         MelDataset(
-    #             result,
-    #             self._stft,
-    #             self.sampling_rate,
-    #             self.fbin_mean,
-    #             self.fbin_std,
-    #         ),
-    #         batch_size=1,
-    #         sampler=None,
-    #         num_workers=num_workers,
-    #     )
-
-    #     n_query = evaluation_num
-    #     train_samples = load_npy_data(outputloader)
-
-    #     mnist_ndb = NDB(
-    #         training_data=train_samples,
-    #         number_of_bins=number_of_bins,
-    #         z_threshold=None,
-    #         whitening=False,
-    #         cache_folder=cache_folder,
-    #     )
-
-    #     result_samples = load_npy_data(resultloader)
-    #     results = mnist_ndb.evaluate(
-    #         self.sample_from(result_samples, n_query), "generated result"
-    #     )
-    #     plt.figure()
-    #     mnist_ndb.plot_results()
-
-    # def getgsmscore(self, output, result, iter_num=40):
-    #     num_workers = 0
-
-    #     print("calculating the gsm score:")
-
-    #     outputloader = DataLoader(
-    #         MelDataset(
-    #             output,
-    #             self._stft,
-    #             self.sampling_rate,
-    #             self.fbin_mean,
-    #             self.fbin_std,
-    #             augment=True,
-    #         ),
-    #         batch_size=1,
-    #         sampler=None,
-    #         num_workers=num_workers,
-    #     )
-    #     resultloader = DataLoader(
-    #         MelDataset(
-    #             result,
-    #             self._stft,
-    #             self.sampling_rate,
-    #             self.fbin_mean,
-    #             self.fbin_std,
-    #         ),
-    #         batch_size=1,
-    #         sampler=None,
-    #         num_workers=num_workers,
-    #     )
-
-    #     x_train = load_npy_data(outputloader)
-
-    #     x_1 = x_train
-    #     newshape = int(x_1.shape[1] / 8)
-    #     x_1 = np.reshape(x_1, (-1, newshape))
-    #     rlts = gs.rlts(x_1, gamma=1.0 / 128, n=iter_num)
-    #     mrlt = np.mean(rlts, axis=0)
-
-    #     gs.fancy_plot(mrlt, label="MRLT of data_1", color="C0")
-    #     plt.xlim([0, 30])
-    #     plt.legend()
-
-    #     x_train = load_npy_data(resultloader)
-
-    #     x_1 = x_train
-    #     x_1 = np.reshape(x_1, (-1, newshape))
-    #     rlts = gs.rlts(x_1, gamma=1.0 / 128, n=iter_num)
-
-    #     mrlt = np.mean(rlts, axis=0)
-
-    #     gs.fancy_plot(mrlt, label="MRLT of data_2", color="orange")
-    #     plt.xlim([0, 30])
-    #     plt.legend()
-    #     plt.show()
-
-    def calculate_lsd(self, pairedloader, same_name=True, time_offset=160*7):
-        if(same_name == False):
+    def calculate_lsd(self, pairedloader, same_name=True, time_offset=160 * 7):
+        if same_name == False:
             return {
                 "lsd": -1,
                 "ssim_stft": -1,
@@ -254,60 +138,51 @@ class EvaluationHelper:
         for _, _, filename, (audio1, audio2) in tqdm(pairedloader):
             audio1 = audio1.cpu().numpy()[0, 0]
             audio2 = audio2.cpu().numpy()[0, 0]
-            
+
             # If you use HIFIGAN (verified on 2023-01-12), you need seven frames' offset
-            audio1 = audio1[time_offset: ]
-            
+            audio1 = audio1[time_offset:]
+
             audio1 = audio1 - np.mean(audio1)
             audio2 = audio2 - np.mean(audio2)
-            
+
             audio1 = audio1 / np.max(np.abs(audio1))
             audio2 = audio2 / np.max(np.abs(audio2))
-            
+
             min_len = min(audio1.shape[0], audio2.shape[0])
-            
+
             audio1, audio2 = audio1[:min_len], audio2[:min_len]
-            
+
             result = self.lsd(audio1, audio2)
-            
+
             lsd_avg.append(result["lsd"])
             ssim_stft_avg.append(result["ssim"])
-            
-        return {
-            "lsd": np.mean(lsd_avg),
-            "ssim_stft": np.mean(ssim_stft_avg)
-        }
-        
+
+        return {"lsd": np.mean(lsd_avg), "ssim_stft": np.mean(ssim_stft_avg)}
+
     def lsd(self, audio1, audio2):
         result = self.lsd_metric.evaluation(audio1, audio2, None)
         return result
 
     def calculate_psnr_ssim(self, pairedloader, same_name=True):
-        if(same_name == False):
-            return {
-                "psnr": -1,
-                "ssim": -1
-            }
+        if same_name == False:
+            return {"psnr": -1, "ssim": -1}
         psnr_avg = []
         ssim_avg = []
         for mel_gen, mel_target, filename, _ in tqdm(pairedloader):
             mel_gen = mel_gen.cpu().numpy()[0]
             mel_target = mel_target.cpu().numpy()[0]
             psnrval = psnr(mel_gen, mel_target)
-            if(np.isinf(psnrval)):
+            if np.isinf(psnrval):
                 print("Infinite value encountered in psnr %s " % filename)
                 continue
             psnr_avg.append(psnrval)
             ssim_avg.append(ssim(mel_gen, mel_target))
-        return {
-            "psnr": np.mean(psnr_avg),
-            "ssim": np.mean(ssim_avg)
-        }
+        return {"psnr": np.mean(psnr_avg), "ssim": np.mean(ssim_avg)}
 
     def calculate_metrics(self, output, result, same_name, limit_num=None):
         # Generation, target
         torch.manual_seed(0)
-        
+
         num_workers = 0
 
         outputloader = DataLoader(
@@ -320,7 +195,7 @@ class EvaluationHelper:
             sampler=None,
             num_workers=num_workers,
         )
-        
+
         resultloader = DataLoader(
             WaveDataset(
                 result,
@@ -331,7 +206,7 @@ class EvaluationHelper:
             sampler=None,
             num_workers=num_workers,
         )
-        
+
         pairedloader = DataLoader(
             MelPairedDataset(
                 output,
@@ -351,7 +226,7 @@ class EvaluationHelper:
 
         metric_lsd = self.calculate_lsd(pairedloader, same_name=same_name)
         out.update(metric_lsd)
-        
+
         print("Extracting features from %s." % result)
         featuresdict_2 = self.get_featuresdict(resultloader)
         print("Extracting features from %s." % output)
@@ -360,8 +235,10 @@ class EvaluationHelper:
         # if cfg.have_kl:
         metric_psnr_ssim = self.calculate_psnr_ssim(pairedloader, same_name=same_name)
         out.update(metric_psnr_ssim)
-        
-        metric_kl = calculate_kl(featuresdict_1, featuresdict_2, "logits", same_name)
+
+        metric_kl, kl_ref, paths_1 = calculate_kl(
+            featuresdict_1, featuresdict_2, "logits", same_name
+        )
         out.update(metric_kl)
 
         metric_isc = calculate_isc(
@@ -377,7 +254,7 @@ class EvaluationHelper:
             featuresdict_1, featuresdict_2, feat_layer_name="2048"
         )
         out.update(metric_fid)
-        
+
         # Gen, target
         fad_score = self.frechet.score(output, result, limit_num=limit_num)
         out.update(fad_score)
@@ -400,42 +277,32 @@ class EvaluationHelper:
         print(limit_num)
         print(
             f'KL_Sigmoid: {out.get("kullback_leibler_divergence_sigmoid", float("nan")):8.5f};',
-            f'KL_Softmax: {out.get("kullback_leibler_divergence_softmax", float("nan")):8.5f};',
+            f'KL: {out.get("kullback_leibler_divergence_softmax", float("nan")):8.5f};',
             f'PSNR: {out.get("psnr", float("nan")):.5f}',
             f'SSIM: {out.get("ssim", float("nan")):.5f}',
             f'ISc: {out.get("inception_score_mean", float("nan")):8.5f} ({out.get("inception_score_std", float("nan")):5f});',
             f'KID: {out.get("kernel_inception_distance_mean", float("nan")):.5f}',
             f'({out.get("kernel_inception_distance_std", float("nan")):.5f})',
-            f'FID: {out.get("frechet_inception_distance", float("nan")):8.5f};',
+            f'FD: {out.get("frechet_distance", float("nan")):8.5f};',
             f'FAD: {out.get("frechet_audio_distance", float("nan")):.5f}',
             f'LSD: {out.get("lsd", float("nan")):.5f}',
             f'SSIM_STFT: {out.get("ssim_stft", float("nan")):.5f}',
         )
         result = {
-            "frechet_inception_distance": out.get(
-                "frechet_inception_distance", float("nan")
+            "frechet_distance": out.get(
+                "frechet_distance", float("nan")
             ),
-            "frechet_audio_distance": out.get(
-                "frechet_audio_distance", float("nan")
-            ),
+            "frechet_audio_distance": out.get("frechet_audio_distance", float("nan")),
             "kullback_leibler_divergence_sigmoid": out.get(
                 "kullback_leibler_divergence_sigmoid", float("nan")
             ),
             "kullback_leibler_divergence_softmax": out.get(
                 "kullback_leibler_divergence_softmax", float("nan")
             ),
-            "lsd": out.get(
-                "lsd", float("nan")
-            ),
-            "psnr": out.get(
-                "psnr", float("nan")
-            ),
-            "ssim": out.get(
-                "ssim", float("nan")
-            ),
-            "ssim_stft": out.get(
-                "ssim_stft", float("nan")
-            ),
+            "lsd": out.get("lsd", float("nan")),
+            "psnr": out.get("psnr", float("nan")),
+            "ssim": out.get("ssim", float("nan")),
+            "ssim_stft": out.get("ssim_stft", float("nan")),
             "inception_score_mean": out.get("inception_score_mean", float("nan")),
             "inception_score_std": out.get("inception_score_std", float("nan")),
             "kernel_inception_distance_mean": out.get(
@@ -445,7 +312,7 @@ class EvaluationHelper:
                 "kernel_inception_distance_std", float("nan")
             ),
         }
-        json_path=output+".json"
+        json_path = output + ".json"
         write_json(result, json_path)
         return result
 
@@ -482,7 +349,9 @@ class EvaluationHelper:
                 else:
                     out_meta = {k: out_meta[k] + metadict[k] for k in out_meta.keys()}
             except Exception as e:
-                import ipdb; ipdb.set_trace()
+                import ipdb
+
+                ipdb.set_trace()
                 print("PANNs Inference error: ", e)
                 continue
 
@@ -494,10 +363,11 @@ class EvaluationHelper:
         rand_order = np.random.permutation(samples.shape[0])
         return samples[rand_order[: samples.shape[0]], :]
 
+
 if __name__ == "__main__":
     import yaml
     import argparse
-    from audiogen_eval import EvaluationHelper
+    from audioldm_eval import EvaluationHelper
     import torch
 
     parser = argparse.ArgumentParser()
@@ -537,7 +407,7 @@ if __name__ == "__main__":
         help="Audio clip numbers limit for evaluation",
         default=None,
     )
-    
+
     args = parser.parse_args()
 
     device = torch.device(f"cuda:{0}")

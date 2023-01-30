@@ -34,9 +34,16 @@ def path_to_sharedkey(path, dataset_name, classes=None):
 
 def calculate_kl(featuresdict_1, featuresdict_2, feat_layer_name, same_name=True):
     # test_input(featuresdict_1, featuresdict_2, feat_layer_name, dataset_name, classes)
-    if(not same_name):
-        return {"kullback_leibler_divergence_sigmoid": float(-1), "kullback_leibler_divergence_softmax": float(-1)}
-    
+    if not same_name:
+        return (
+            {
+                "kullback_leibler_divergence_sigmoid": float(-1),
+                "kullback_leibler_divergence_softmax": float(-1),
+            },
+            None,
+            None,
+        )
+
     print(
         'KL: Assuming that `input2` is "pseudo" target and `input1` is prediction. KL(input2_i||input1_i)'
     )
@@ -64,12 +71,10 @@ def calculate_kl(featuresdict_1, featuresdict_2, feat_layer_name, same_name=True
 
     for sharedkey, feat_2 in sharedkey_to_feats_2.items():
         # print("feat_2",feat_2)
-        if(sharedkey not in sharedkey_to_feats_1.keys()):
+        if sharedkey not in sharedkey_to_feats_1.keys():
             print("%s is not in the generation result" % sharedkey)
             continue
-        features_1.extend(
-            [sharedkey_to_feats_1[sharedkey]]
-        )  
+        features_1.extend([sharedkey_to_feats_1[sharedkey]])
         # print("feature_step",len(features_1))
         # print("share",sharedkey_to_feats_1[sharedkey])
         # just replicating the ground truth logits to compare with multiple samples in prediction
@@ -79,17 +84,33 @@ def calculate_kl(featuresdict_1, featuresdict_2, feat_layer_name, same_name=True
     features_1 = torch.stack(features_1, dim=0)
     features_2 = torch.stack(features_2, dim=0)
 
+    kl_ref = torch.nn.functional.kl_div(
+        (features_1.softmax(dim=1) + EPS).log(),
+        features_2.softmax(dim=1),
+        reduction="none",
+    ) / len(features_1)
+    kl_ref = torch.mean(kl_ref, dim=-1)
+
     # AudioGen use this formulation
     kl_softmax = torch.nn.functional.kl_div(
-        (features_1.softmax(dim=1) + EPS).log(), features_2.softmax(dim=1), reduction="sum"
+        (features_1.softmax(dim=1) + EPS).log(),
+        features_2.softmax(dim=1),
+        reduction="sum",
     ) / len(features_1)
 
     # For multi-class audio clips, this formulation could be better
     kl_sigmoid = torch.nn.functional.kl_div(
         (features_1.sigmoid() + EPS).log(), features_2.sigmoid(), reduction="sum"
     ) / len(features_1)
-    
-    return {"kullback_leibler_divergence_sigmoid": float(kl_sigmoid), "kullback_leibler_divergence_softmax": float(kl_softmax)}
+
+    return (
+        {
+            "kullback_leibler_divergence_sigmoid": float(kl_sigmoid),
+            "kullback_leibler_divergence_softmax": float(kl_softmax),
+        },
+        kl_ref,
+        paths_1,
+    )
 
 
 def test_input(featuresdict_1, featuresdict_2, feat_layer_name, dataset_name, classes):

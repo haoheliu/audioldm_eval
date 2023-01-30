@@ -1,9 +1,0 @@
-12/23/2022 09:52:08 PM - INFO - MainThread:  
-1. You will sumbit [31m1[0m jobs: [32m['f4'][0m. 
-2. No identifier specified, will transfer project data. 
-3. Each submitfile will have [31m1[0m runs if the first run have total time > [31m3600[0m seconds. If the first run time < [31m3600[0m seconds. Something wrong may happens. I will abort the remaining runs. 
-[34m++> Will not transfer output log back to the original project folder. 
-[0mNote: 
-How we determine if a job is finished? 
-If the number of running job is 0, held job is 0, and idle job is 0. 
-

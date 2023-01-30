@@ -1,10 +1,6 @@
 import os
 import logging
-import h5py
-import soundfile
-import librosa
 import numpy as np
-import pandas as pd
 from scipy import stats
 import datetime
 import pickle

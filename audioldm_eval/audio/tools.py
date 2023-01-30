@@ -1,9 +1,35 @@
 import torch
 import numpy as np
 from scipy.io.wavfile import write
-import torchaudio
+import pickle
+import json
+from audioldm_eval.audio.audio_processing import griffin_lim
 
-from audiogen_eval.audio.audio_processing import griffin_lim
+
+def save_pickle(obj, fname):
+    print("Save pickle at " + fname)
+    with open(fname, "wb") as f:
+        pickle.dump(obj, f)
+
+
+def load_pickle(fname):
+    print("Load pickle at " + fname)
+    with open(fname, "rb") as f:
+        res = pickle.load(f)
+    return res
+
+
+def write_json(my_dict, fname):
+    print("Save json file at " + fname)
+    json_str = json.dumps(my_dict)
+    with open(fname, "w") as json_file:
+        json_file.write(json_str)
+
+
+def load_json(fname):
+    with open(fname, "r") as f:
+        data = json.load(f)
+        return data
 
 
 def get_mel_from_wav(audio, _stft):
