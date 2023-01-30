@@ -25,21 +25,23 @@ python3 test.py
 
 ## Evaluation metrics
 We have the following metrics in this toolbox:
+
 - FD: Frechet distance, realized by PANNs, a state-of-the-art audio classification model.
 - FAD: Frechet audio distance.
-- ISc: Inception Score.
-- KID: Kernel Inception Score.
+- ISc: Inception score.
+- KID: Kernel inception score.
 - KL: KL divergence (softmax over logits)
 - KL_Sigmoid: KL divergence (sigmoid over logits)
-- PSNR: Peak Signal Noise Ratio
+- PSNR: Peak signal noise ratio
 - SSIM: Structural similarity index measure
 - LSD: Log-spectral distance
 
-The evaluation function will accept the paths to two folders as main parameters. 
-1. If two folder have files with same name, the evaluation will run in paired mode.
-2. If two folder have different numbers of files or files with different name, the evaluation will run in unpaired mode.
+The evaluation function will accept the paths of two folders as main parameters. 
+1. If two folder have **files with same name and same numbers of files**, the evaluation will run in **paired mode**.
+2. If two folder have **different numbers of files or files with different name**, the evaluation will run in **unpaired mode**.
 
-These metrics will only be calculated in paried mode: KL, KL_Sigmoid, PSNR, SSIM, LSD, otherwise these metrics will return minus one.
+**These metrics will only be calculated in paried mode**: KL, KL_Sigmoid, PSNR, SSIM, LSD. 
+In the unpaired mode, these metrics will return minus one.
 
 
 ## Example
