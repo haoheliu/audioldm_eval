@@ -1,8 +1,6 @@
 # Audio Generation Evaluation
 
-This tool box is for the evaluation of audio generation model. 
-
-We hope this toolbox can unify the evaluation of audio generation model for easier comparisons between different methods.
+This toolbox unifies audio generation model evaluation for easier comparison.
 
 ## Quick Start
 
