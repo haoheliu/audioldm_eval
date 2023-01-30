@@ -289,9 +289,7 @@ class EvaluationHelper:
             f'SSIM_STFT: {out.get("ssim_stft", float("nan")):.5f}',
         )
         result = {
-            "frechet_distance": out.get(
-                "frechet_distance", float("nan")
-            ),
+            "frechet_distance": out.get("frechet_distance", float("nan")),
             "frechet_audio_distance": out.get("frechet_audio_distance", float("nan")),
             "kullback_leibler_divergence_sigmoid": out.get(
                 "kullback_leibler_divergence_sigmoid", float("nan")
