@@ -14,17 +14,17 @@ pip install -e .
 ```
 
 Second, generate test dataset by
-```python
+```shell
 python3 gen_test_file.py
 ```
 
 Finally, perform a test run
-```
+```shell
 python3 test.py
 ```
 
 ## Evaluation metrics
-We have the following metrics in this toolbox:
+We have the following metrics in this toolbox: 
 
 - FD: Frechet distance, realized by PANNs, a state-of-the-art audio classification model.
 - FAD: Frechet audio distance.
@@ -63,5 +63,6 @@ evaluator = EvaluationHelper(16000, device)
 metrics = evaluator.main(
     generation_result_path,
     target_audio_path,
+    limit_num=None # If you only intend to evaluate X (int) pairs of data, set limit_num=X
 )
 ```
