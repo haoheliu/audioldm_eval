@@ -1,6 +1,6 @@
 # Audio Generation Evaluation
 
-This toolbox unifies audio generation model evaluation for easier comparison.
+This toolbox aims to unify audio generation model evaluation for easier future comparison.
 
 ## Quick Start
 
