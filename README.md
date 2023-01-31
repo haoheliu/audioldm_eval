@@ -65,6 +65,11 @@ metrics = evaluator.main(
 )
 ```
 
+## TODO
+
+- [ ] Add pretrained AudioLDM model.
+- [ ] Add CLAP score
+
 ## Reference
 
 > https://github.com/toshas/torch-fidelity
