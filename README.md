@@ -24,10 +24,10 @@ python3 test.py # Evaluate and save the json file to disk (example/paired.json)
 ## Evaluation metrics
 We have the following metrics in this toolbox: 
 
-- FD: Frechet distance, realized by PANNs, a state-of-the-art audio classification model.
-- FAD: Frechet audio distance.
-- ISc: Inception score.
-- KID: Kernel inception score.
+- FD: Frechet distance, realized by PANNs, a state-of-the-art audio classification model
+- FAD: Frechet audio distance
+- ISc: Inception score
+- KID: Kernel inception score
 - KL: KL divergence (softmax over logits)
 - KL_Sigmoid: KL divergence (sigmoid over logits)
 - PSNR: Peak signal noise ratio
