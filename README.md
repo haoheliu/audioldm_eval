@@ -64,3 +64,9 @@ metrics = evaluator.main(
     limit_num=None # If you only intend to evaluate X (int) pairs of data, set limit_num=X
 )
 ```
+
+## Reference
+
+> https://github.com/toshas/torch-fidelity
+
+> https://github.com/v-iashin/SpecVQGAN 
