@@ -42,6 +42,14 @@ The evaluation function will accept the paths of two folders as main parameters.
 In the unpaired mode, these metrics will return minus one.
 
 
+## Evaluation on AudioCaps and AudioSet
+
+The AudioCaps test set consists of audio files with multiple text annotations. To evaluate the performance of AudioLDM, we randomly selected one annotation per audio file, which can be found in the [accompanying json file](example/AudioCaps/audiocaps_test_nonrepeat_subset_2.json).
+
+Given the size of the AudioSet evaluation set with approximately 20,000 audio files, it may be impractical for audio generative models to perform evaluation on the entire set. As a result, we randomly selected 2,000 audio files for evaluation, with the corresponding annotations available in a [json file](example/AudioSet/audioset_eval_data_subset.json).
+
+For more information on our evaluation process, please refer to [our paper](https://arxiv.org/abs/2301.12503).
+
 ## Example
 
 ```python
@@ -69,6 +77,18 @@ metrics = evaluator.main(
 
 - [ ] Add pretrained AudioLDM model.
 - [ ] Add CLAP score
+
+## Cite this repo
+
+If you found this tool useful, please consider citing
+```bibtex
+@article{liu2023audioldm,
+  title={AudioLDM: Text-to-Audio Generation with Latent Diffusion Models},
+  author={Liu, Haohe and Chen, Zehua and Yuan, Yi and Mei, Xinhao and Liu, Xubo and Mandic, Danilo and Wang, Wenwu and Plumbley, Mark D},
+  journal={arXiv preprint arXiv:2301.12503},
+  year={2023}
+}
+```
 
 ## Reference
 
