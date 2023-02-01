@@ -86,7 +86,7 @@ def train(args):
       cuda: bool
     """
 
-    # Arugments & parameters
+    # Arguments & parameters
     workspace = args.workspace
     data_type = args.data_type
     sample_rate = args.sample_rate
