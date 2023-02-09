@@ -75,18 +75,18 @@ class EvaluationHelper:
 
     def main(
         self,
-        o_filepath,
-        resultpath,
+        generate_files_path,
+        groundtruth_path,
         limit_num=None,
     ):
-        self.file_init_check(o_filepath)
-        self.file_init_check(resultpath)
+        self.file_init_check(generate_files_path)
+        self.file_init_check(groundtruth_path)
 
         same_name = self.get_filename_intersection_ratio(
-            o_filepath, resultpath, limit_num=limit_num
+            generate_files_path, groundtruth_path, limit_num=limit_num
         )
 
-        metrics = self.calculate_metrics(o_filepath, resultpath, same_name, limit_num)
+        metrics = self.calculate_metrics(generate_files_path, groundtruth_path, same_name, limit_num)
 
         return metrics
 
@@ -179,7 +179,7 @@ class EvaluationHelper:
             ssim_avg.append(ssim(mel_gen, mel_target))
         return {"psnr": np.mean(psnr_avg), "ssim": np.mean(ssim_avg)}
 
-    def calculate_metrics(self, output, result, same_name, limit_num=None):
+    def calculate_metrics(self, generate_files_path, groundtruth_path, same_name, limit_num=None):
         # Generation, target
         torch.manual_seed(0)
 
@@ -187,7 +187,7 @@ class EvaluationHelper:
 
         outputloader = DataLoader(
             WaveDataset(
-                output,
+                generate_files_path,
                 self.sampling_rate,
                 limit_num=limit_num,
             ),
@@ -198,7 +198,7 @@ class EvaluationHelper:
 
         resultloader = DataLoader(
             WaveDataset(
-                result,
+                groundtruth_path,
                 self.sampling_rate,
                 limit_num=limit_num,
             ),
@@ -209,8 +209,8 @@ class EvaluationHelper:
 
         pairedloader = DataLoader(
             MelPairedDataset(
-                output,
-                result,
+                generate_files_path,
+                groundtruth_path,
                 self._stft,
                 self.sampling_rate,
                 self.fbin_mean,
@@ -227,9 +227,9 @@ class EvaluationHelper:
         metric_lsd = self.calculate_lsd(pairedloader, same_name=same_name)
         out.update(metric_lsd)
 
-        print("Extracting features from %s." % result)
+        print("Extracting features from %s." % groundtruth_path)
         featuresdict_2 = self.get_featuresdict(resultloader)
-        print("Extracting features from %s." % output)
+        print("Extracting features from %s." % generate_files_path)
         featuresdict_1 = self.get_featuresdict(outputloader)
 
         # if cfg.have_kl:
@@ -256,7 +256,7 @@ class EvaluationHelper:
         out.update(metric_fid)
 
         # Gen, target
-        fad_score = self.frechet.score(output, result, limit_num=limit_num)
+        fad_score = self.frechet.score(generate_files_path, groundtruth_path, limit_num=limit_num)
         out.update(fad_score)
 
         metric_kid = calculate_kid(
@@ -310,7 +310,7 @@ class EvaluationHelper:
                 "kernel_inception_distance_std", float("nan")
             ),
         }
-        json_path = output + ".json"
+        json_path = generate_files_path + ".json"
         write_json(result, json_path)
         return result
 

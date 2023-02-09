@@ -141,8 +141,9 @@ class WaveDataset(torch.utils.data.Dataset):
             except Exception as e:
                 print(index, e)
                 index = (index + 1) % len(self.datalist)
-
+        
         return waveform, os.path.basename(filename)
+
 
     def __len__(self):
         return len(self.datalist)
