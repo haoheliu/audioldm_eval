@@ -4,6 +4,10 @@ import numpy as np
 import torchaudio
 from tqdm import tqdm
 
+def pad_short_audio(audio, min_samples=32000):
+    if(audio.size(-1) < min_samples):
+        audio = torch.nn.functional.pad(audio, (0, min_samples - audio.size(-1)), mode='constant', value=0.0)
+    return audio
 
 class MelPairedDataset(torch.utils.data.Dataset):
     def __init__(
@@ -81,6 +85,8 @@ class MelPairedDataset(torch.utils.data.Dataset):
 
     def get_mel_from_file(self, audio_file):
         audio, file_sr = torchaudio.load(audio_file)
+        # Only use the first channel
+        audio = audio[0:1,...]
         audio = audio - audio.mean()
 
         if file_sr != self.sr:
@@ -144,21 +150,24 @@ class WaveDataset(torch.utils.data.Dataset):
         
         return waveform, os.path.basename(filename)
 
-
     def __len__(self):
         return len(self.datalist)
 
     def read_from_file(self, audio_file):
         audio, file_sr = torchaudio.load(audio_file)
+        # Only use the first channel
+        audio = audio[0:1,...]
         audio = audio - audio.mean()
 
         if file_sr != self.sr and file_sr == 32000 and self.sr == 16000:
             audio = audio[..., ::2]
+        if file_sr != self.sr and file_sr == 48000 and self.sr == 16000:
+            audio = audio[..., ::3]
         elif file_sr != self.sr:
             audio = torchaudio.functional.resample(
                 audio, orig_freq=file_sr, new_freq=self.sr
             )
-
+        audio = pad_short_audio(audio, min_samples=32000)
         return audio
 
 
