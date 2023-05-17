@@ -176,8 +176,7 @@ class EvaluationHelper:
                 print("Infinite value encountered in psnr %s " % filename)
                 continue
             psnr_avg.append(psnrval)
-            data_range = max(np.max(mel_gen), np.max(mel_target)) - min(np.min(mel_gen), np.min(mel_target))
-            ssim_avg.append(ssim(mel_gen, mel_target, data_range=data_range))
+            ssim_avg.append(ssim(mel_gen, mel_target))
         return {"psnr": np.mean(psnr_avg), "ssim": np.mean(ssim_avg)}
 
     def calculate_metrics(self, generate_files_path, groundtruth_path, same_name, limit_num=None):
