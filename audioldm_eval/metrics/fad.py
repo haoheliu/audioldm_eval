@@ -33,13 +33,12 @@ def load_audio_task(fname):
         wav_data = np.mean(wav_data, axis=1)
 
     if sr != SAMPLE_RATE:
-        if SAMPLE_RATE == 16000 and sr == 32000:
-            wav_data = wav_data[::2]
-        else:
-            wav_data = resampy.resample(wav_data, sr, SAMPLE_RATE)
+        # if SAMPLE_RATE == 16000 and sr == 32000:
+        #     wav_data = wav_data[::2]
+        # else:
+        wav_data = resampy.resample(wav_data, sr, SAMPLE_RATE) # TODO try out different kinds of sampling rate here
 
     return wav_data, SAMPLE_RATE
-
 
 class FrechetAudioDistance:
     def __init__(

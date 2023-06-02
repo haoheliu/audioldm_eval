@@ -159,11 +159,13 @@ class WaveDataset(torch.utils.data.Dataset):
         audio = audio[0:1,...]
         audio = audio - audio.mean()
 
-        if file_sr != self.sr and file_sr == 32000 and self.sr == 16000:
-            audio = audio[..., ::2]
-        if file_sr != self.sr and file_sr == 48000 and self.sr == 16000:
-            audio = audio[..., ::3]
-        elif file_sr != self.sr:
+        # if file_sr != self.sr and file_sr == 32000 and self.sr == 16000:
+        #     audio = audio[..., ::2]
+        # if file_sr != self.sr and file_sr == 48000 and self.sr == 16000:
+        #     audio = audio[..., ::3]
+        # el
+        
+        if file_sr != self.sr:
             audio = torchaudio.functional.resample(
                 audio, orig_freq=file_sr, new_freq=self.sr
             )
