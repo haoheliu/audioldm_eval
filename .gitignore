@@ -11,3 +11,9 @@ datasets/*
 test_fad/*
 *.ckpt
 *.json
+audio
+build
+dist
+*.pkl
+pickle_check.py
+test.py
