@@ -2,6 +2,10 @@
 
 This toolbox aims to unify audio generation model evaluation for easier future comparison.
 
+## Attention!
+
+This branch change PANNs model into PassT as the audio classifier. 
+
 ## Quick Start
 
 First, prepare the environment
