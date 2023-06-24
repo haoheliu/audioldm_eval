@@ -15,7 +15,7 @@ from audioldm_eval.feature_extractors.panns import Cnn14
 from audioldm_eval.audio.tools import save_pickle, load_pickle, write_json, load_json
 from ssr_eval.metrics import AudioMetrics
 import audioldm_eval.audio as Audio
-from hear21passt.base import get_basic_model,get_model_passt
+# from hear21passt.base import get_basic_model,get_model_passt
 
 class EvaluationHelper:
     def __init__(self, sampling_rate, device, backbone="cnn14") -> None:
@@ -29,9 +29,9 @@ class EvaluationHelper:
             verbose=True,
         )
         
-        self.passt_model = get_basic_model(mode="logits")
-        self.passt_model.eval()
-        self.passt_model.to(self.device)
+        # self.passt_model = get_basic_model(mode="logits")
+        # self.passt_model.eval()
+        # self.passt_model.to(self.device)
 
         # self.lsd_metric = AudioMetrics(self.sampling_rate)
         self.frechet.model = self.frechet.model.to(device)
@@ -196,8 +196,8 @@ class EvaluationHelper:
         outputloader = DataLoader(
             WaveDataset(
                 generate_files_path,
-                # self.sampling_rate, # TODO
-                32000,
+                self.sampling_rate, # TODO
+                # 32000,
                 limit_num=limit_num,
             ),
             batch_size=1,
@@ -208,8 +208,8 @@ class EvaluationHelper:
         resultloader = DataLoader(
             WaveDataset(
                 groundtruth_path,
-                # self.sampling_rate, # TODO
-                32000,
+                self.sampling_rate, # TODO
+                # 32000,
                 limit_num=limit_num,
             ),
             batch_size=1,
@@ -219,6 +219,7 @@ class EvaluationHelper:
 
         out = {}
 
+        print("")
         # FAD
         ######################################################################################################################
         # if(recalculate): 
@@ -304,13 +305,13 @@ class EvaluationHelper:
             f'ISc: {out.get("inception_score_mean", float("nan")):8.5f} ({out.get("inception_score_std", float("nan")):5f});',
             f'KID: {out.get("kernel_inception_distance_mean", float("nan")):.5f}',
             f'({out.get("kernel_inception_distance_std", float("nan")):.5f})',
-            # f'FD: {out.get("frechet_distance", float("nan")):8.5f};',
+            f'FD: {out.get("frechet_distance", float("nan")):8.5f};',
             f'FAD: {out.get("frechet_audio_distance", float("nan")):.5f}',
             f'LSD: {out.get("lsd", float("nan")):.5f}',
             # f'SSIM_STFT: {out.get("ssim_stft", float("nan")):.5f}',
         )
         result = {
-            # "frechet_distance": out.get("frechet_distance", float("nan")),
+            "frechet_distance": out.get("frechet_distance", float("nan")),
             "frechet_audio_distance": out.get("frechet_audio_distance", float("nan")),
             "kullback_leibler_divergence_sigmoid": out.get(
                 "kullback_leibler_divergence_sigmoid", float("nan")
@@ -355,16 +356,16 @@ class EvaluationHelper:
                 # batch = transforms(batch)
                 waveform = waveform.float().to(self.device)
 
-                featuresdict = {}
-                with torch.no_grad():
-                    if(waveform.size(-1) >= 320000):
-                        waveform = waveform[...,:320000]
-                    else:
-                        waveform = torch.nn.functional.pad(waveform, (0,320000-waveform.size(-1)))
-                    featuresdict["logits"] = self.passt_model(waveform)
-
+                # featuresdict = {}
                 # with torch.no_grad():
-                #     featuresdict = self.mel_model(waveform) # "logits": [1, 527]
+                #     if(waveform.size(-1) >= 320000):
+                #         waveform = waveform[...,:320000]
+                #     else:
+                #         waveform = torch.nn.functional.pad(waveform, (0,320000-waveform.size(-1)))
+                #     featuresdict["logits"] = self.passt_model(waveform)
+
+                with torch.no_grad():
+                    featuresdict = self.mel_model(waveform) # "logits": [1, 527]
 
                 featuresdict = {k: [v.cpu()] for k, v in featuresdict.items()}
 

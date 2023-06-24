@@ -167,7 +167,7 @@ class WaveDataset(torch.utils.data.Dataset):
 
         if file_sr != self.sr:
             audio = torchaudio.functional.resample(
-                audio, orig_freq=file_sr, new_freq=self.sr, rolloff=0.95 #  , lowpass_filter_width=16 
+                audio, orig_freq=file_sr, new_freq=self.sr, # rolloff=0.95, lowpass_filter_width=16 
             )
             # audio = torch.FloatTensor(librosa.resample(audio.numpy(), file_sr, self.sr))
             
