@@ -93,7 +93,7 @@ class EvaluationHelper:
             generate_files_path, groundtruth_path, limit_num=limit_num
         )
 
-        metrics = self.calculate_metrics(generate_files_path, groundtruth_path, same_name, limit_num, recalculate=True) # 
+        metrics = self.calculate_metrics(generate_files_path, groundtruth_path, same_name, limit_num) # , recalculate=True
 
         return metrics
 
@@ -219,20 +219,34 @@ class EvaluationHelper:
 
         out = {}
 
-        print("")
         # FAD
         ######################################################################################################################
-        # if(recalculate): 
-        #     print("Calculate FAD score from scratch")
-        # fad_score = self.frechet.score(generate_files_path, groundtruth_path, limit_num=limit_num, recalculate=recalculate)
-        # out.update(fad_score)
-        # print("FAD: %s" % fad_score)
+        if(recalculate): 
+            print("Calculate FAD score from scratch")
+        fad_score = self.frechet.score(generate_files_path, groundtruth_path, limit_num=limit_num, recalculate=recalculate)
+        out.update(fad_score)
+        print("FAD: %s" % fad_score)
         ######################################################################################################################
         
-        # PANNs
+        # PANNs or PassT
         ######################################################################################################################
-        featuresdict_2 = self.get_featuresdict(resultloader)
-        featuresdict_1 = self.get_featuresdict(outputloader)
+        cache_path = groundtruth_path + "classifier_logits_feature_cache.pkl"
+        if(os.path.exists(cache_path) and not recalculate):
+            print("reload", cache_path)
+            featuresdict_2 = load_pickle(cache_path)
+        else:
+            print("Extracting features from %s." % groundtruth_path)
+            featuresdict_2 = self.get_featuresdict(resultloader)
+            save_pickle(featuresdict_2, cache_path)
+        
+        cache_path = generate_files_path + "classifier_logits_feature_cache.pkl"
+        if(os.path.exists(cache_path) and not recalculate):
+            print("reload", cache_path)
+            featuresdict_1 = load_pickle(cache_path)
+        else:
+            print("Extracting features from %s." % generate_files_path)
+            featuresdict_1 = self.get_featuresdict(outputloader)
+            save_pickle(featuresdict_1, cache_path)
 
         metric_kl, kl_ref, paths_1 = calculate_kl(
             featuresdict_1, featuresdict_2, "logits", same_name

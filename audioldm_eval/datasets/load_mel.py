@@ -3,7 +3,7 @@ import os
 import numpy as np
 import torchaudio
 from tqdm import tqdm
-import librosa
+# import librosa
 
 def pad_short_audio(audio, min_samples=32000):
     if(audio.size(-1) < min_samples):
