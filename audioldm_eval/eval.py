@@ -22,7 +22,7 @@ class EvaluationHelper:
 
         self.device = device
         self.backbone = backbone
-        self.sampling_rate = sampling_rate
+        self.sampling_rate = 32000 # PassT works on 32000 Hz
         self.frechet = FrechetAudioDistance(
             use_pca=False,
             use_activation=False,
@@ -35,46 +35,6 @@ class EvaluationHelper:
 
         # self.lsd_metric = AudioMetrics(self.sampling_rate)
         self.frechet.model = self.frechet.model.to(device)
-
-        features_list = ["2048", "logits"]
-        if self.sampling_rate == 16000:
-            self.mel_model = Cnn14(
-                features_list=features_list,
-                sample_rate=16000,
-                window_size=512,
-                hop_size=160,
-                mel_bins=64,
-                fmin=50,
-                fmax=8000,
-                classes_num=527,
-            )
-        elif self.sampling_rate == 32000:
-            self.mel_model = Cnn14(
-                features_list=features_list,
-                sample_rate=32000,
-                window_size=1024,
-                hop_size=320,
-                mel_bins=64,
-                fmin=50,
-                fmax=14000,
-                classes_num=527,
-            )
-        else:
-            raise ValueError(
-                "We only support the evaluation on 16kHz and 32kHz sampling rate."
-            )
-
-        if self.sampling_rate == 16000:
-            self._stft = Audio.TacotronSTFT(512, 160, 512, 64, 16000, 50, 8000)
-        elif self.sampling_rate == 32000:
-            self._stft = Audio.TacotronSTFT(1024, 320, 1024, 64, 32000, 50, 14000)
-        else:
-            raise ValueError(
-                "We only support the evaluation on 16kHz and 32kHz sampling rate."
-            )
-
-        self.mel_model.eval()
-        self.mel_model.to(self.device)
         self.fbin_mean, self.fbin_std = None, None
 
     def main(
@@ -93,7 +53,7 @@ class EvaluationHelper:
             generate_files_path, groundtruth_path, limit_num=limit_num
         )
 
-        metrics = self.calculate_metrics(generate_files_path, groundtruth_path, same_name, limit_num, recalculate=True) # 
+        metrics = self.calculate_metrics(generate_files_path, groundtruth_path, same_name, limit_num) # recalculate=True
 
         return metrics
 
@@ -196,7 +156,6 @@ class EvaluationHelper:
         outputloader = DataLoader(
             WaveDataset(
                 generate_files_path,
-                # self.sampling_rate, # TODO
                 32000,
                 limit_num=limit_num,
             ),
@@ -208,7 +167,6 @@ class EvaluationHelper:
         resultloader = DataLoader(
             WaveDataset(
                 groundtruth_path,
-                # self.sampling_rate, # TODO
                 32000,
                 limit_num=limit_num,
             ),
@@ -221,11 +179,11 @@ class EvaluationHelper:
 
         # FAD
         ######################################################################################################################
-        # if(recalculate): 
-        #     print("Calculate FAD score from scratch")
-        # fad_score = self.frechet.score(generate_files_path, groundtruth_path, limit_num=limit_num, recalculate=recalculate)
-        # out.update(fad_score)
-        # print("FAD: %s" % fad_score)
+        if(recalculate): 
+            print("Calculate FAD score from scratch")
+        fad_score = self.frechet.score(generate_files_path, groundtruth_path, limit_num=limit_num, recalculate=recalculate)
+        out.update(fad_score)
+        print("FAD: %s" % fad_score)
         ######################################################################################################################
         
         # PANNs
@@ -280,18 +238,6 @@ class EvaluationHelper:
             metric_psnr_ssim = self.calculate_psnr_ssim(pairedloader, same_name=same_name)
             out.update(metric_psnr_ssim)
 
-        # metric_kid = calculate_kid(
-        #     featuresdict_1,
-        #     featuresdict_2,
-        #     feat_layer_name="2048",
-        #     subsets=100,
-        #     subset_size=1000,
-        #     degree=3,
-        #     gamma=None,
-        #     coef0=1,
-        #     rng_seed=2020,
-        # )
-        # out.update(metric_kid)
 
         print("\n".join((f"{k}: {v:.7f}" for k, v in out.items())))
         print("\n")
@@ -302,8 +248,8 @@ class EvaluationHelper:
             f'PSNR: {out.get("psnr", float("nan")):.5f}',
             f'SSIM: {out.get("ssim", float("nan")):.5f}',
             f'ISc: {out.get("inception_score_mean", float("nan")):8.5f} ({out.get("inception_score_std", float("nan")):5f});',
-            f'KID: {out.get("kernel_inception_distance_mean", float("nan")):.5f}',
-            f'({out.get("kernel_inception_distance_std", float("nan")):.5f})',
+            # f'KID: {out.get("kernel_inception_distance_mean", float("nan")):.5f}',
+            # f'({out.get("kernel_inception_distance_std", float("nan")):.5f})',
             # f'FD: {out.get("frechet_distance", float("nan")):8.5f};',
             f'FAD: {out.get("frechet_audio_distance", float("nan")):.5f}',
             f'LSD: {out.get("lsd", float("nan")):.5f}',
@@ -312,24 +258,24 @@ class EvaluationHelper:
         result = {
             # "frechet_distance": out.get("frechet_distance", float("nan")),
             "frechet_audio_distance": out.get("frechet_audio_distance", float("nan")),
-            "kullback_leibler_divergence_sigmoid": out.get(
-                "kullback_leibler_divergence_sigmoid", float("nan")
-            ),
             "kullback_leibler_divergence_softmax": out.get(
                 "kullback_leibler_divergence_softmax", float("nan")
+            ),
+            # "ssim_stft": out.get("ssim_stft", float("nan")),
+            "inception_score_mean": out.get("inception_score_mean", float("nan")),
+            "inception_score_std": out.get("inception_score_std", float("nan")),
+            "kullback_leibler_divergence_sigmoid": out.get(
+                "kullback_leibler_divergence_sigmoid", float("nan")
             ),
             "lsd": out.get("lsd", float("nan")),
             "psnr": out.get("psnr", float("nan")),
             "ssim": out.get("ssim", float("nan")),
-            # "ssim_stft": out.get("ssim_stft", float("nan")),
-            "inception_score_mean": out.get("inception_score_mean", float("nan")),
-            "inception_score_std": out.get("inception_score_std", float("nan")),
-            "kernel_inception_distance_mean": out.get(
-                "kernel_inception_distance_mean", float("nan")
-            ),
-            "kernel_inception_distance_std": out.get(
-                "kernel_inception_distance_std", float("nan")
-            ),
+            # "kernel_inception_distance_mean": out.get(
+            #     "kernel_inception_distance_mean", float("nan")
+            # ),
+            # "kernel_inception_distance_std": out.get(
+            #     "kernel_inception_distance_std", float("nan")
+            # ),
         }
 
         json_path = os.path.join(os.path.dirname(generate_files_path), self.get_current_time()+"_"+os.path.basename(generate_files_path) + ".json")
@@ -356,6 +302,7 @@ class EvaluationHelper:
                 waveform = waveform.float().to(self.device)
 
                 featuresdict = {}
+                # The PassT model can only work on 10s audio
                 with torch.no_grad():
                     if(waveform.size(-1) >= 320000):
                         waveform = waveform[...,:320000]
