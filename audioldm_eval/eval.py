@@ -2,6 +2,7 @@ import os
 from audioldm_eval.datasets.load_mel import load_npy_data, MelPairedDataset, WaveDataset
 import numpy as np
 import argparse
+import datetime
 
 import torch
 from torch.utils.data import DataLoader
@@ -14,9 +15,7 @@ from audioldm_eval.feature_extractors.panns import Cnn14
 from audioldm_eval.audio.tools import save_pickle, load_pickle, write_json, load_json
 from ssr_eval.metrics import AudioMetrics
 import audioldm_eval.audio as Audio
-
-import time
-
+# from hear21passt.base import get_basic_model,get_model_passt
 
 class EvaluationHelper:
     def __init__(self, sampling_rate, device, backbone="cnn14") -> None:
@@ -29,7 +28,12 @@ class EvaluationHelper:
             use_activation=False,
             verbose=True,
         )
-        self.lsd_metric = AudioMetrics(self.sampling_rate)
+        
+        # self.passt_model = get_basic_model(mode="logits")
+        # self.passt_model.eval()
+        # self.passt_model.to(self.device)
+
+        # self.lsd_metric = AudioMetrics(self.sampling_rate)
         self.frechet.model = self.frechet.model.to(device)
 
         features_list = ["2048", "logits"]
@@ -79,6 +83,9 @@ class EvaluationHelper:
         groundtruth_path,
         limit_num=None,
     ):
+        print("Generted files", generate_files_path)
+        print("Target files", groundtruth_path)
+
         self.file_init_check(generate_files_path)
         self.file_init_check(groundtruth_path)
 
@@ -86,7 +93,7 @@ class EvaluationHelper:
             generate_files_path, groundtruth_path, limit_num=limit_num
         )
 
-        metrics = self.calculate_metrics(generate_files_path, groundtruth_path, same_name, limit_num)
+        metrics = self.calculate_metrics(generate_files_path, groundtruth_path, same_name, limit_num) # , recalculate=True
 
         return metrics
 
@@ -180,16 +187,17 @@ class EvaluationHelper:
             ssim_avg.append(ssim(mel_gen, mel_target, data_range=data_range))
         return {"psnr": np.mean(psnr_avg), "ssim": np.mean(ssim_avg)}
 
-    def calculate_metrics(self, generate_files_path, groundtruth_path, same_name, limit_num=None):
+    def calculate_metrics(self, generate_files_path, groundtruth_path, same_name, limit_num=None, calculate_psnr_ssim=False, calculate_lsd=False, recalculate=False):
         # Generation, target
         torch.manual_seed(0)
 
-        num_workers = 0
+        num_workers = 6
 
         outputloader = DataLoader(
             WaveDataset(
                 generate_files_path,
-                self.sampling_rate,
+                self.sampling_rate, # TODO
+                # 32000,
                 limit_num=limit_num,
             ),
             batch_size=1,
@@ -200,7 +208,8 @@ class EvaluationHelper:
         resultloader = DataLoader(
             WaveDataset(
                 groundtruth_path,
-                self.sampling_rate,
+                self.sampling_rate, # TODO
+                # 32000,
                 limit_num=limit_num,
             ),
             batch_size=1,
@@ -208,38 +217,41 @@ class EvaluationHelper:
             num_workers=num_workers,
         )
 
-        pairedloader = DataLoader(
-            MelPairedDataset(
-                generate_files_path,
-                groundtruth_path,
-                self._stft,
-                self.sampling_rate,
-                self.fbin_mean,
-                self.fbin_std,
-                limit_num=limit_num,
-            ),
-            batch_size=1,
-            sampler=None,
-            num_workers=16,
-        )
-
         out = {}
 
-        metric_lsd = self.calculate_lsd(pairedloader, same_name=same_name)
-        out.update(metric_lsd)
-
-        print("Extracting features from %s." % groundtruth_path)
-        featuresdict_2 = self.get_featuresdict(resultloader)
-        print("Extracting features from %s." % generate_files_path)
-        featuresdict_1 = self.get_featuresdict(outputloader)
-
-        # if cfg.have_kl:
-        metric_psnr_ssim = self.calculate_psnr_ssim(pairedloader, same_name=same_name)
-        out.update(metric_psnr_ssim)
+        # FAD
+        ######################################################################################################################
+        if(recalculate): 
+            print("Calculate FAD score from scratch")
+        fad_score = self.frechet.score(generate_files_path, groundtruth_path, limit_num=limit_num, recalculate=recalculate)
+        out.update(fad_score)
+        print("FAD: %s" % fad_score)
+        ######################################################################################################################
+        
+        # PANNs or PassT
+        ######################################################################################################################
+        cache_path = groundtruth_path + "classifier_logits_feature_cache.pkl"
+        if(os.path.exists(cache_path) and not recalculate):
+            print("reload", cache_path)
+            featuresdict_2 = load_pickle(cache_path)
+        else:
+            print("Extracting features from %s." % groundtruth_path)
+            featuresdict_2 = self.get_featuresdict(resultloader)
+            save_pickle(featuresdict_2, cache_path)
+        
+        cache_path = generate_files_path + "classifier_logits_feature_cache.pkl"
+        if(os.path.exists(cache_path) and not recalculate):
+            print("reload", cache_path)
+            featuresdict_1 = load_pickle(cache_path)
+        else:
+            print("Extracting features from %s." % generate_files_path)
+            featuresdict_1 = self.get_featuresdict(outputloader)
+            save_pickle(featuresdict_1, cache_path)
 
         metric_kl, kl_ref, paths_1 = calculate_kl(
             featuresdict_1, featuresdict_2, "logits", same_name
         )
+        
         out.update(metric_kl)
 
         metric_isc = calculate_isc(
@@ -251,27 +263,50 @@ class EvaluationHelper:
         )
         out.update(metric_isc)
 
-        metric_fid = calculate_fid(
-            featuresdict_1, featuresdict_2, feat_layer_name="2048"
-        )
-        out.update(metric_fid)
+        if("2048" in featuresdict_1.keys() and "2048" in featuresdict_2.keys()):
+            metric_fid = calculate_fid(
+                featuresdict_1, featuresdict_2, feat_layer_name="2048"
+            )
+            out.update(metric_fid)
 
-        # Gen, target
-        fad_score = self.frechet.score(generate_files_path, groundtruth_path, limit_num=limit_num)
-        out.update(fad_score)
+        # Metrics for Autoencoder
+        ######################################################################################################################
+        if(calculate_psnr_ssim or calculate_lsd):
+            pairedloader = DataLoader(
+                MelPairedDataset(
+                    generate_files_path,
+                    groundtruth_path,
+                    self._stft,
+                    self.sampling_rate,
+                    self.fbin_mean,
+                    self.fbin_std,
+                    limit_num=limit_num,
+                ),
+                batch_size=1,
+                sampler=None,
+                num_workers=16,
+            )
+            
+        if(calculate_lsd):
+            metric_lsd = self.calculate_lsd(pairedloader, same_name=same_name)
+            out.update(metric_lsd)
 
-        metric_kid = calculate_kid(
-            featuresdict_1,
-            featuresdict_2,
-            feat_layer_name="2048",
-            subsets=100,
-            subset_size=1000,
-            degree=3,
-            gamma=None,
-            coef0=1,
-            rng_seed=2020,
-        )
-        out.update(metric_kid)
+        if(calculate_psnr_ssim):
+            metric_psnr_ssim = self.calculate_psnr_ssim(pairedloader, same_name=same_name)
+            out.update(metric_psnr_ssim)
+
+        # metric_kid = calculate_kid(
+        #     featuresdict_1,
+        #     featuresdict_2,
+        #     feat_layer_name="2048",
+        #     subsets=100,
+        #     subset_size=1000,
+        #     degree=3,
+        #     gamma=None,
+        #     coef0=1,
+        #     rng_seed=2020,
+        # )
+        # out.update(metric_kid)
 
         print("\n".join((f"{k}: {v:.7f}" for k, v in out.items())))
         print("\n")
@@ -287,7 +322,7 @@ class EvaluationHelper:
             f'FD: {out.get("frechet_distance", float("nan")):8.5f};',
             f'FAD: {out.get("frechet_audio_distance", float("nan")):.5f}',
             f'LSD: {out.get("lsd", float("nan")):.5f}',
-            f'SSIM_STFT: {out.get("ssim_stft", float("nan")):.5f}',
+            # f'SSIM_STFT: {out.get("ssim_stft", float("nan")):.5f}',
         )
         result = {
             "frechet_distance": out.get("frechet_distance", float("nan")),
@@ -301,7 +336,7 @@ class EvaluationHelper:
             "lsd": out.get("lsd", float("nan")),
             "psnr": out.get("psnr", float("nan")),
             "ssim": out.get("ssim", float("nan")),
-            "ssim_stft": out.get("ssim_stft", float("nan")),
+            # "ssim_stft": out.get("ssim_stft", float("nan")),
             "inception_score_mean": out.get("inception_score_mean", float("nan")),
             "inception_score_std": out.get("inception_score_std", float("nan")),
             "kernel_inception_distance_mean": out.get(
@@ -311,17 +346,20 @@ class EvaluationHelper:
                 "kernel_inception_distance_std", float("nan")
             ),
         }
-        json_path = generate_files_path + ".json"
+
+        json_path = os.path.join(os.path.dirname(generate_files_path), self.get_current_time()+"_"+os.path.basename(generate_files_path) + ".json")
         write_json(result, json_path)
         return result
 
-    def get_featuresdict(self, dataloader):
+    def get_current_time(self):
+        now = datetime.datetime.now()
+        return now.strftime("%Y-%m-%d-%H:%M:%S")
 
+    def get_featuresdict(self, dataloader):
         out = None
         out_meta = None
 
         # transforms=StandardNormalizeAudio()
-
         for waveform, filename in tqdm(dataloader):
             try:
                 metadict = {
@@ -332,10 +370,17 @@ class EvaluationHelper:
                 # batch = transforms(batch)
                 waveform = waveform.float().to(self.device)
 
-                with torch.no_grad():
-                    featuresdict = self.mel_model(waveform)
+                # featuresdict = {}
+                # with torch.no_grad():
+                #     if(waveform.size(-1) >= 320000):
+                #         waveform = waveform[...,:320000]
+                #     else:
+                #         waveform = torch.nn.functional.pad(waveform, (0,320000-waveform.size(-1)))
+                #     featuresdict["logits"] = self.passt_model(waveform)
 
-                # featuresdict = self.mel_model.convert_features_tuple_to_dict(features)
+                with torch.no_grad():
+                    featuresdict = self.mel_model(waveform) # "logits": [1, 527]
+
                 featuresdict = {k: [v.cpu()] for k, v in featuresdict.items()}
 
                 if out is None:
@@ -351,7 +396,7 @@ class EvaluationHelper:
                 import ipdb
 
                 ipdb.set_trace()
-                print("PANNs Inference error: ", e)
+                print("Classifier Inference error: ", e)
                 continue
 
         out = {k: torch.cat(v, dim=0) for k, v in out.items()}

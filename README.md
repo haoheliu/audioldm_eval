@@ -24,15 +24,17 @@ python3 test.py # Evaluate and save the json file to disk (example/paired.json)
 ## Evaluation metrics
 We have the following metrics in this toolbox: 
 
-- FD: Frechet distance, realized by PANNs, a state-of-the-art audio classification model
-- FAD: Frechet audio distance
-- ISc: Inception score
-- KID: Kernel inception score
-- KL: KL divergence (softmax over logits)
-- KL_Sigmoid: KL divergence (sigmoid over logits)
-- PSNR: Peak signal noise ratio
-- SSIM: Structural similarity index measure
-- LSD: Log-spectral distance
+- Recommanded:
+  - FAD: Frechet audio distance
+  - ISc: Inception score
+- Other for references:
+  - FD: Frechet distance, realized by PANNs, a state-of-the-art audio classification model
+  - KID: Kernel inception score
+  - KL: KL divergence (softmax over logits)
+  - KL_Sigmoid: KL divergence (sigmoid over logits)
+  - PSNR: Peak signal noise ratio
+  - SSIM: Structural similarity index measure
+  - LSD: Log-spectral distance
 
 The evaluation function will accept the paths of two folders as main parameters. 
 1. If two folder have **files with same name and same numbers of files**, the evaluation will run in **paired mode**.
@@ -40,7 +42,6 @@ The evaluation function will accept the paths of two folders as main parameters.
 
 **These metrics will only be calculated in paried mode**: KL, KL_Sigmoid, PSNR, SSIM, LSD. 
 In the unpaired mode, these metrics will return minus one.
-
 
 ## Evaluation on AudioCaps and AudioSet
 
@@ -72,6 +73,14 @@ metrics = evaluator.main(
     limit_num=None # If you only intend to evaluate X (int) pairs of data, set limit_num=X
 )
 ```
+
+## Note
+
+- Update on 24 June 2023: 
+  - **Issues on model evaluation:** I found the PANNs based Frechet Distance and KL score is not as robust as FAD sometimes. For example, when the generation are all silent audio, the FAD and KL still indicate model perform very well, while FAD and Inception Score (IS) can still reflect the model true bad performance. Sometimes the resample method on audio can significantly affect the FD (+-30) and KL (+-0.4) performance as well.
+    - To address this issue, in another branch of this repo ([passt_replace_panns](https://github.com/haoheliu/audioldm_eval/tree/passt_replace_panns)), I change the PANNs model to Passt, which I found to be more robust to resample method and other trival mismatches.
+
+  - **Update on code:** The calculation of FAD is slow. Now, after each calculation of a folder, the code will save the FAD feature into an .npy file for later reference. 
 
 ## TODO
 

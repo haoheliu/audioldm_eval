@@ -3,6 +3,7 @@ import os
 import numpy as np
 import torchaudio
 from tqdm import tqdm
+# import librosa
 
 def pad_short_audio(audio, min_samples=32000):
     if(audio.size(-1) < min_samples):
@@ -88,7 +89,6 @@ class MelPairedDataset(torch.utils.data.Dataset):
         # Only use the first channel
         audio = audio[0:1,...]
         audio = audio - audio.mean()
-
         if file_sr != self.sr:
             audio = torchaudio.functional.resample(
                 audio, orig_freq=file_sr, new_freq=self.sr
@@ -164,14 +164,15 @@ class WaveDataset(torch.utils.data.Dataset):
         # if file_sr != self.sr and file_sr == 48000 and self.sr == 16000:
         #     audio = audio[..., ::3]
         # el
-        
+
         if file_sr != self.sr:
             audio = torchaudio.functional.resample(
-                audio, orig_freq=file_sr, new_freq=self.sr
+                audio, orig_freq=file_sr, new_freq=self.sr, # rolloff=0.95, lowpass_filter_width=16 
             )
+            # audio = torch.FloatTensor(librosa.resample(audio.numpy(), file_sr, self.sr))
+            
         audio = pad_short_audio(audio, min_samples=32000)
         return audio
-
 
 def load_npy_data(loader):
     new_train = []

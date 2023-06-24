@@ -8,37 +8,13 @@ VGGish adapted from: https://github.com/harritaylor/torchvggish
 import os
 import numpy as np
 import torch
+
 from torch import nn
 from scipy import linalg
 from tqdm import tqdm
-import soundfile as sf
-import resampy
 from multiprocessing.dummy import Pool as ThreadPool
-
-SAMPLE_RATE = 16000
-
-
-def load_audio_task(fname):
-    try:
-        wav_data, sr = sf.read(fname, dtype="int16")
-    except Exception as e:
-        print(e)
-        wav_data = np.zeros(160000)
-        sr = 16000
-    assert wav_data.dtype == np.int16, "Bad sample type: %r" % wav_data.dtype
-    wav_data = wav_data / 32768.0  # Convert to [-1.0, +1.0]
-
-    # Convert to mono
-    if len(wav_data.shape) > 1:
-        wav_data = np.mean(wav_data, axis=1)
-
-    if sr != SAMPLE_RATE:
-        # if SAMPLE_RATE == 16000 and sr == 32000:
-        #     wav_data = wav_data[::2]
-        # else:
-        wav_data = resampy.resample(wav_data, sr, SAMPLE_RATE) # TODO try out different kinds of sampling rate here
-
-    return wav_data, SAMPLE_RATE
+from audioldm_eval.datasets.load_mel import WaveDataset
+from torch.utils.data import DataLoader
 
 class FrechetAudioDistance:
     def __init__(
@@ -64,6 +40,23 @@ class FrechetAudioDistance:
             )
         self.model.eval()
 
+    def load_audio_data(self, x):
+        outputloader = DataLoader(
+            WaveDataset(
+                x,
+                16000,
+                limit_num=None,
+            ),
+            batch_size=1,
+            sampler=None,
+            num_workers=8,
+        )
+        data_list = []
+        print("Loading data to RAM")
+        for batch in tqdm(outputloader):
+            data_list.append((batch[0][0,0], 16000))
+        return data_list
+
     def get_embeddings(self, x, sr=16000, limit_num=None):
         """
         Get embeddings using VGGish model.
@@ -74,39 +67,15 @@ class FrechetAudioDistance:
         -- sr   : Sampling rate, if x is a list of audio samples. Default value is 16000.
         """
         embd_lst = []
-        if isinstance(x, list):
+        x = self.load_audio_data(x)
+        if isinstance(x, list): 
             try:
                 for audio, sr in tqdm(x, disable=(not self.verbose)):
-                    embd = self.model.forward(audio, sr)
+                    embd = self.model.forward(audio.numpy(), sr)
                     if self.model.device == torch.device("cuda"):
                         embd = embd.cpu()
                     embd = embd.detach().numpy()
                     embd_lst.append(embd)
-            except Exception as e:
-                print(
-                    "[Frechet Audio Distance] get_embeddings throw an exception: {}".format(
-                        str(e)
-                    )
-                )
-        elif isinstance(x, str):
-            if self.verbose:
-                print("Calculating the embedding of the audio files inside %s" % x)
-            try:
-                for i, fname in tqdm(
-                    enumerate(os.listdir(x)), disable=(not self.verbose)
-                ):
-                    if limit_num is not None and i > limit_num:
-                        break
-                    try:
-                        audio, sr = load_audio_task(os.path.join(x, fname))
-                        embd = self.model.forward(audio, sr)
-                        if self.model.device == torch.device("cuda"):
-                            embd = embd.cpu()
-                        embd = embd.detach().numpy()
-                        embd_lst.append(embd)
-                    except Exception as e:
-                        print(e, fname)
-                        continue
             except Exception as e:
                 print(
                     "[Frechet Audio Distance] get_embeddings throw an exception: {}".format(
@@ -184,36 +153,26 @@ class FrechetAudioDistance:
 
         return diff.dot(diff) + np.trace(sigma1) + np.trace(sigma2) - 2 * tr_covmean
 
-    def __load_audio_files(self, dir):
-        task_results = []
-
-        pool = ThreadPool(self.audio_load_worker)
-        pbar = tqdm(total=len(os.listdir(dir)), disable=(not self.verbose))
-
-        def update(*a):
-            pbar.update()
-
-        if self.verbose:
-            print("[Frechet Audio Distance] Loading audio from {}...".format(dir))
-        for fname in os.listdir(dir):
-            res = pool.apply_async(
-                load_audio_task, args=(os.path.join(dir, fname),), callback=update
-            )
-
-            task_results.append(res)
-        pool.close()
-        pool.join()
-
-        return [k.get() for k in task_results]
-
-    def score(self, background_dir, eval_dir, store_embds=False, limit_num=None):
+    def score(self, background_dir, eval_dir, store_embds=False, limit_num=None, recalculate = False): 
         # background_dir: generated samples
         # eval_dir: groundtruth samples
         try:
-            # audio_background = self.__load_audio_files(background_dir)
-            # audio_eval = self.__load_audio_files(eval_dir)
-            embds_background = self.get_embeddings(background_dir, limit_num=limit_num)
-            embds_eval = self.get_embeddings(eval_dir, limit_num=limit_num)
+            fad_target_folder_cache = eval_dir + "_fad_feature_cache.npy"
+            fad_generated_folder_cache = background_dir + "_fad_feature_cache.npy"
+
+            if(not os.path.exists(fad_generated_folder_cache) or recalculate):
+                embds_background = self.get_embeddings(background_dir, limit_num=limit_num)
+                np.save(fad_generated_folder_cache, embds_background)
+            else:
+                print("Reload fad_generated_folder_cache", fad_generated_folder_cache)
+                embds_background = np.load(fad_generated_folder_cache)
+
+            if(not os.path.exists(fad_target_folder_cache) or recalculate):
+                embds_eval = self.get_embeddings(eval_dir, limit_num=limit_num)
+                np.save(fad_target_folder_cache, embds_eval)
+            else:
+                print("Reload fad_target_folder_cache", fad_target_folder_cache)
+                embds_eval = np.load(fad_target_folder_cache)
 
             if store_embds:
                 np.save("embds_background.npy", embds_background)
