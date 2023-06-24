@@ -6,9 +6,7 @@ This toolbox aims to unify audio generation model evaluation for easier future c
 
 First, prepare the environment
 ```shell
-git clone https://github.com/haoheliu/audioldm_eval.git
-cd audioldm_eval
-pip install -e .
+pip install git+https://github.com/haoheliu/audioldm_eval
 ```
 
 Second, generate test dataset by
