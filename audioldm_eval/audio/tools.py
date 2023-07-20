@@ -20,10 +20,8 @@ def load_pickle(fname):
 
 
 def write_json(my_dict, fname):
-    print("Save json file at " + fname)
-    json_str = json.dumps(my_dict)
-    with open(fname, "w") as json_file:
-        json_file.write(json_str)
+    with open(fname, 'w', encoding="utf-8") as outfile:
+        json.dump(my_dict, outfile, indent=4, ensure_ascii=False)
 
 
 def load_json(fname):

@@ -3,8 +3,8 @@ from audioldm_eval import EvaluationHelper
 
 device = torch.device(f"cuda:{0}")
 
-# generation_result_path = "/mnt/bn/lqhaoheliu/project/audio_generation_diffusion/log/latent_diffusion/22_is_audiomae_helpful_or_not/2023_06_20_clap_1000_steps_32k/val_247520_32k"
-generation_result_path = "/mnt/bn/lqhaoheliu/project/audio_generation_diffusion/log/latent_diffusion/22_is_audiomae_helpful_or_not/2023_06_20_clap_1000_steps_32k/val_247520_32k_16k"
+generation_result_path = "/mnt/bn/lqhaoheliu/project/audioldm_eval/audio/output/2023_05_24_clap_audiomae_ldm_audiocaps_val_433160"
+# generation_result_path = "/mnt/bn/lqhaoheliu/project/audioldm_eval/audio/output/val_0_cfg_scale_2.0_ddim_200_n_cand_1"
 # generation_result_path = "/mnt/bn/lqhaoheliu/project/audio_generation_diffusion/log/latent_diffusion/22_is_audiomae_helpful_or_not/2023_06_20_clap_1000_steps_32k/val_247520_32k_resp_librosa_16k"
 # generation_result_path = "/mnt/bn/lqhaoheliu/project/audio_generation_diffusion/log/latent_diffusion/22_is_audiomae_helpful_or_not/2023_06_20_clap_1000_steps_32k/val_247520_32k_resp_ta_16k"
 # generation_result_path = "/mnt/bn/lqhaoheliu/project/audio_generation_diffusion/log/latent_diffusion/22_is_audiomae_helpful_or_not/2023_06_20_clap_1000_steps_32k/val_247520_32k_resp_sox_simple__16k"

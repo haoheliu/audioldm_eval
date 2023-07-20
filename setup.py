@@ -31,8 +31,9 @@ URL = "https://github.com/haoheliu/audioldm_eval"
 EMAIL = "haoheliu@gmail.com"
 AUTHOR = "Haohe Liu"
 REQUIRES_PYTHON = ">=3.6.0"
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 
+# pip install git+https://github.com/haoheliu/audioldm_eval@passt_replace_panns
 # What packages are required for this module to be executed?
 REQUIRED = [
     "torch>=1.11.0",

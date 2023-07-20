@@ -8,18 +8,16 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from audioldm_eval.metrics.fad import FrechetAudioDistance
-from audioldm_eval import calculate_fid, calculate_isc, calculate_kid, calculate_kl
+from audioldm_eval.clap_score.fname_caption_mapping import musiccaps_fname_to_caption_mapping, audiocaps_fname_to_caption_mapping
+from audioldm_eval import calculate_fid, calculate_isc, calculate_kid, calculate_kl, calculate_clap_sore
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from skimage.metrics import structural_similarity as ssim
-from audioldm_eval.feature_extractors.panns import Cnn14
 from audioldm_eval.audio.tools import save_pickle, load_pickle, write_json, load_json
-from ssr_eval.metrics import AudioMetrics
-import audioldm_eval.audio as Audio
 from hear21passt.base import get_basic_model,get_model_passt
+import audioldm_eval.audio as Audio
 
 class EvaluationHelper:
-    def __init__(self, sampling_rate, device, backbone="cnn14") -> None:
-
+    def __init__(self, sampling_rate, device, backbone="Passt") -> None:
         self.device = device
         self.backbone = backbone
         self.sampling_rate = 32000 # PassT works on 32000 Hz
@@ -28,7 +26,7 @@ class EvaluationHelper:
             use_activation=False,
             verbose=True,
         )
-        
+
         self.passt_model = get_basic_model(mode="logits")
         self.passt_model.eval()
         self.passt_model.to(self.device)
@@ -36,6 +34,15 @@ class EvaluationHelper:
         # self.lsd_metric = AudioMetrics(self.sampling_rate)
         self.frechet.model = self.frechet.model.to(device)
         self.fbin_mean, self.fbin_std = None, None
+
+        if self.sampling_rate == 16000:
+            self._stft = Audio.TacotronSTFT(512, 160, 512, 64, 16000, 50, 8000)
+        elif self.sampling_rate == 32000:
+            self._stft = Audio.TacotronSTFT(1024, 320, 1024, 64, 32000, 50, 14000)
+        else:
+            raise ValueError(
+                "We only support the evaluation on 16kHz and 32kHz sampling rate."
+            )
 
     def main(
         self,
@@ -53,10 +60,25 @@ class EvaluationHelper:
             generate_files_path, groundtruth_path, limit_num=limit_num
         )
 
+        if(len(os.listdir(generate_files_path)) == len(os.listdir(groundtruth_path)) and len(os.listdir(groundtruth_path)) >= 850 and len(os.listdir(groundtruth_path)) <= 980):
+            clap_score = calculate_clap_sore(generate_files_path, audiocaps_fname_to_caption_mapping)
+            # clap_score = calculate_clap_sore(groundtruth_path, audiocaps_fname_to_caption_mapping)
+        elif(len(os.listdir(generate_files_path)) == len(os.listdir(groundtruth_path)) and len(os.listdir(groundtruth_path)) == 5471):
+            clap_score = calculate_clap_sore(generate_files_path, musiccaps_fname_to_caption_mapping)
+        else:
+            clap_score = None
+        print("Clap score", clap_score)
+        
         metrics = self.calculate_metrics(generate_files_path, groundtruth_path, same_name, limit_num) # recalculate=True
+        
+        metrics["clap_score"] = float(clap_score)
+        metrics["generation_audio_file_count"] = len(os.listdir(generate_files_path))
+        metrics["target_audio_file_count"] = len(os.listdir(groundtruth_path))
+
+        json_path = os.path.join(os.path.dirname(generate_files_path), self.get_current_time()+"_"+os.path.basename(generate_files_path) + ".json")
+        write_json(metrics, json_path)
 
         return metrics
-
     def file_init_check(self, dir):
         assert os.path.exists(dir), "The path does not exist %s" % dir
         assert len(os.listdir(dir)) > 1, "There is no files in %s" % dir
@@ -147,7 +169,7 @@ class EvaluationHelper:
             ssim_avg.append(ssim(mel_gen, mel_target, data_range=data_range))
         return {"psnr": np.mean(psnr_avg), "ssim": np.mean(ssim_avg)}
 
-    def calculate_metrics(self, generate_files_path, groundtruth_path, same_name, limit_num=None, calculate_psnr_ssim=False, calculate_lsd=False, recalculate=False):
+    def calculate_metrics(self, generate_files_path, groundtruth_path, same_name, limit_num=None, calculate_psnr_ssim=True, calculate_lsd=False, recalculate=False):
         # Generation, target
         torch.manual_seed(0)
 
@@ -277,9 +299,6 @@ class EvaluationHelper:
             #     "kernel_inception_distance_std", float("nan")
             # ),
         }
-
-        json_path = os.path.join(os.path.dirname(generate_files_path), self.get_current_time()+"_"+os.path.basename(generate_files_path) + ".json")
-        write_json(result, json_path)
         return result
 
     def get_current_time(self):
