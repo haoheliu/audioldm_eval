@@ -11,7 +11,7 @@ This branch change PANNs model into PassT as the audio classifier.
 First, prepare the environment
 ```shell
 # pip install git+https://github.com/haoheliu/audioldm_eval@passt_replace_panns
-git clone -b passt_replace_panns https://github.com/haoheliu/audioldm_eval.git; cd audioldm_eval; pip install -e .
+git clone -b passt_replace_panns https://github.com/haoheliu/audioldm_eval.git; cd audioldm_eval; pip install -e .; pip install -e 'git+https://github.com/kkoutini/passt_hear21#egg=hear21passt';
 ```
 
 Second, generate test dataset by
