@@ -45,6 +45,7 @@ REQUIRED = [
     "tqdm",
     "ssr_eval",
     "librosa",
+    "laion_clap",
 ]
 
 # What packages are optional?

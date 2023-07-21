@@ -3,7 +3,7 @@ import os
 import numpy as np
 import torchaudio
 from tqdm import tqdm
-import librosa
+# import librosa
 
 def pad_short_audio(audio, min_samples=32000):
     if(audio.size(-1) < min_samples):
@@ -167,7 +167,7 @@ class WaveDataset(torch.utils.data.Dataset):
 
         if file_sr != self.sr:
             audio = torchaudio.functional.resample(
-                audio, orig_freq=file_sr, new_freq=self.sr, rolloff=0.95 #  , lowpass_filter_width=16 
+                audio, orig_freq=file_sr, new_freq=self.sr, # rolloff=0.95, lowpass_filter_width=16 
             )
             # audio = torch.FloatTensor(librosa.resample(audio.numpy(), file_sr, self.sr))
             
