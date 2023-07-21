@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-
+import os
 from torch.utils.data import DataLoader
 from audioldm_eval.clap_score.model import CLAPAudioEmbeddingClassifierFreev2
 from audioldm_eval.datasets.load_mel import load_npy_data, MelPairedDataset, WaveDataset
@@ -19,6 +19,12 @@ def calculate_clap_sore(generate_files_path, filename_to_text_mapping):
         sampler=None,
         num_workers=4,
     )
+
+    pretrained_path = "/mnt/bn/lqhaoheliu/exps/checkpoints/audioldm/2023_04_07_audioldm_clap_v2_yusong/music_speech_audioset_epoch_15_esc_89.98.pt"
+    
+    if(not os.path.exists(pretrained_path)):
+        print("Error: Cannot calculate CLAP score. The pretrained checkpoint music_speech_audioset_epoch_15_esc_89.98.pt is not found, please download it from https://huggingface.co/lukewys/laion_clap/blob/main/music_speech_audioset_epoch_15_esc_89.98.pt. After downloading, please change the pretrained path in the code and install audioldm_eval again.")
+        return None
 
     clap = CLAPAudioEmbeddingClassifierFreev2(pretrained_path="/mnt/bn/lqhaoheliu/exps/checkpoints/audioldm/2023_04_07_audioldm_clap_v2_yusong/music_speech_audioset_epoch_15_esc_89.98.pt",
                                                 sampling_rate=32000,
