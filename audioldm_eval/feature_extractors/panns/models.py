@@ -232,18 +232,12 @@ class Cnn14(nn.Module):
 
         self.fc1 = nn.Linear(2048, 2048, bias=True)
         self.fc_audioset = nn.Linear(2048, classes_num, bias=True)
-
-        if not os.path.exists("ckpt/Cnn14_mAP=0.431.pth"):
+        home_dir = os.path.expanduser("~")
+        if not os.path.exists("%s/.cache/audioldm_eval/ckpt/Cnn14_mAP=0.431.pth" % (home_dir)):
             print("Download pretrained checkpoints of Cnn14.")
-            os.makedirs("ckpt", exist_ok=True)
-            os.system(
-                "wget -P ckpt/ %s"
-                % ("https://zenodo.org/record/3576403/files/Cnn14_mAP%3D0.431.pth")
-            )
-            os.system(
-                "wget -P ckpt/ %s"
-                % ("https://zenodo.org/record/3987831/files/Cnn14_16k_mAP%3D0.438.pth")
-            )
+            os.makedirs("%s/.cache/audioldm_eval/ckpt" % (home_dir), exist_ok=True)
+            os.system("wget -P %s/.cache/audioldm_eval/ckpt/ %s" % (home_dir,"https://zenodo.org/record/3576403/files/Cnn14_mAP%3D0.431.pth"))
+            os.system("wget -P %s/.cache/audioldm_eval/ckpt/ %s" % (home_dir,"https://zenodo.org/record/3987831/files/Cnn14_16k_mAP%3D0.438.pth"))
 
         # self.init_weight()
         if sample_rate == 16000:
@@ -3170,18 +3164,12 @@ class Cnn14_16k(nn.Module):
         self.fc_audioset = nn.Linear(2048, classes_num, bias=True)
 
         # self.init_weight()
-
-        if not os.path.exist("ckpt/Cnn14_mAP=0.431.pth"):
+        home_dir = os.path.expanduser("~")
+        if not os.path.exist("%s/.cache/audioldm_eval/ckpt/Cnn14_mAP=0.431.pth" % home_dir):
             print("Download pretrained checkpoints of Cnn14.")
             os.makedirs("ckpt", exist_ok=True)
-            os.system(
-                "wget -P ckpt/ %s"
-                % ("https://zenodo.org/record/3576403/files/Cnn14_mAP%3D0.431.pth")
-            )
-            os.system(
-                "wget -P ckpt/ %s"
-                % ("https://zenodo.org/record/3987831/files/Cnn14_16k_mAP%3D0.438.pth")
-            )
+            os.system("wget -P %s/.cache/audioldm_eval/ckpt/ %s" % (home_dir,"https://zenodo.org/record/3576403/files/Cnn14_mAP%3D0.431.pth"))
+            os.system("wget -P %s/.cache/audioldm_eval/ckpt/ %s" % (home_dir,"https://zenodo.org/record/3987831/files/Cnn14_16k_mAP%3D0.438.pth"))
 
         # self.init_weight()
         if sample_rate == 16000:
