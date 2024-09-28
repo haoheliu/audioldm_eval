@@ -3,5 +3,4 @@ from .metrics.isc import calculate_isc
 from .metrics.kid import calculate_kid
 from .metrics.kl import calculate_kl
 from .eval import EvaluationHelper
-
-print("2023 -06 -22")
+from .eval_parallel import EvaluationHelperParallel

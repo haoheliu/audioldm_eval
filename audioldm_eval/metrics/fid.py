@@ -22,7 +22,7 @@ def calculate_fid(
         "sigma": np.cov(features_2.numpy(), rowvar=False),
     }
 
-    print("Computing Frechet Distance (PANNs)")
+    print("Computing Frechet Distance")
 
     mu1, sigma1 = stat_1["mu"], stat_1["sigma"]
     mu2, sigma2 = stat_2["mu"], stat_2["sigma"]
