@@ -3,10 +3,11 @@ from audioldm_eval.datasets.load_mel import load_npy_data, MelPairedDataset, Wav
 import numpy as np
 import argparse
 import datetime
-
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import torchaudio.transforms as T
+from transformers import Wav2Vec2Processor, AutoModel, Wav2Vec2FeatureExtractor
 from audioldm_eval.metrics.fad import FrechetAudioDistance
 from audioldm_eval import calculate_fid, calculate_isc, calculate_kid, calculate_kl
 from skimage.metrics import peak_signal_noise_ratio as psnr
@@ -15,10 +16,9 @@ from audioldm_eval.feature_extractors.panns import Cnn14
 from audioldm_eval.audio.tools import save_pickle, load_pickle, write_json, load_json
 from ssr_eval.metrics import AudioMetrics
 import audioldm_eval.audio as Audio
-# from hear21passt.base import get_basic_model,get_model_passt
 
 class EvaluationHelper:
-    def __init__(self, sampling_rate, device, backbone="cnn14") -> None:
+    def __init__(self, sampling_rate, device, backbone="mert") -> None:
 
         self.device = device
         self.backbone = backbone
@@ -37,32 +37,41 @@ class EvaluationHelper:
         self.frechet.model = self.frechet.model.to(device)
 
         features_list = ["2048", "logits"]
-        if self.sampling_rate == 16000:
-            self.mel_model = Cnn14(
-                features_list=features_list,
-                sample_rate=16000,
-                window_size=512,
-                hop_size=160,
-                mel_bins=64,
-                fmin=50,
-                fmax=8000,
-                classes_num=527,
-            )
-        elif self.sampling_rate == 32000:
-            self.mel_model = Cnn14(
-                features_list=features_list,
-                sample_rate=32000,
-                window_size=1024,
-                hop_size=320,
-                mel_bins=64,
-                fmin=50,
-                fmax=14000,
-                classes_num=527,
-            )
+        
+        if self.backbone == "mert":
+            self.mel_model = AutoModel.from_pretrained("m-a-p/MERT-v1-95M", trust_remote_code=True)
+            self.processor = Wav2Vec2FeatureExtractor.from_pretrained("m-a-p/MERT-v1-95M",trust_remote_code=True)
+            self.target_sample_rate = self.processor.sampling_rate
+            self.resampler = T.Resample(orig_freq=self.sampling_rate, new_freq=self.target_sample_rate).to(self.device)
+        elif self.backbone == "cnn14":
+            if self.sampling_rate == 16000:
+                self.mel_model = Cnn14(
+                    features_list=features_list,
+                    sample_rate=16000,
+                    window_size=512,
+                    hop_size=160,
+                    mel_bins=64,
+                    fmin=50,
+                    fmax=8000,
+                    classes_num=527,
+                )
+            elif self.sampling_rate == 32000:
+                self.mel_model = Cnn14(
+                    features_list=features_list,
+                    sample_rate=32000,
+                    window_size=1024,
+                    hop_size=320,
+                    mel_bins=64,
+                    fmin=50,
+                    fmax=14000,
+                    classes_num=527,
+                )
+            else:
+                raise ValueError(
+                    "We only support the evaluation on 16kHz and 32kHz sampling rate for CNN14."
+                )
         else:
-            raise ValueError(
-                "We only support the evaluation on 16kHz and 32kHz sampling rate."
-            )
+            raise ValueError("Backbone not supported")
 
         if self.sampling_rate == 16000:
             self._stft = Audio.TacotronSTFT(512, 160, 512, 64, 16000, 50, 8000)
@@ -93,7 +102,7 @@ class EvaluationHelper:
             generate_files_path, groundtruth_path, limit_num=limit_num
         )
 
-        metrics = self.calculate_metrics(generate_files_path, groundtruth_path, same_name, limit_num) # , recalculate=True
+        metrics = self.calculate_metrics(generate_files_path, groundtruth_path, same_name, limit_num) # recalculate = True
 
         return metrics
 
@@ -379,7 +388,14 @@ class EvaluationHelper:
                 #     featuresdict["logits"] = self.passt_model(waveform)
 
                 with torch.no_grad():
-                    featuresdict = self.mel_model(waveform) # "logits": [1, 527]
+                    if self.backbone == "mert":
+                        waveform = self.resampler(waveform[0])
+                        mert_input = self.processor(waveform, sampling_rate=self.target_sample_rate, return_tensors="pt").to(self.device)
+                        mert_output = self.mel_model(**mert_input, output_hidden_states=True)
+                        time_reduced_hidden_states = torch.stack(mert_output.hidden_states).squeeze().mean(dim=1)
+                        featuresdict = {"2048": time_reduced_hidden_states.cpu(), "logits": time_reduced_hidden_states.cpu()}
+                    elif self.backbone == "cnn14":
+                        featuresdict = self.mel_model(waveform)
 
                 featuresdict = {k: [v.cpu()] for k, v in featuresdict.items()}
 

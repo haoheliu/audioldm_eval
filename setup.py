@@ -37,6 +37,7 @@ VERSION = "0.0.5"
 REQUIRED = [
     "torch>=1.11.0",
     "torchaudio",
+    "transformers",
     "scikit-image",
     "torchlibrosa",
     "absl-py",
